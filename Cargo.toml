@@ -1,0 +1,13 @@
+[package]
+name = "tymerl"
+version = "0.1.0"
+authors = ["jzhang"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rltk = { version = "0.8.1" }
+specs = { version = "0.16.1", features = ["specs-derive"] }
+lazy_static = { version = "1.4.0" }
+ezing = { version = "0.2.1" }
