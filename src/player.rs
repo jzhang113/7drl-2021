@@ -1,4 +1,4 @@
-use super::{AttackIntent, Map, MoveIntent, Player, Position, RunState, State, Viewshed};
+use super::{Map, MoveIntent, Player, Position, RunState, State, Viewshed};
 use rltk::{Algorithm2D, Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 
@@ -7,7 +7,6 @@ fn try_move_player(ecs: &mut World, dx: i32, dy: i32) -> RunState {
     let mut positions = ecs.write_storage::<Position>();
     let players = ecs.read_storage::<Player>();
     let mut movements = ecs.write_storage::<MoveIntent>();
-    let mut attacks = ecs.write_storage::<AttackIntent>();
     let map = ecs.fetch::<Map>();
     let player = ecs.fetch::<Entity>();
 
@@ -27,16 +26,12 @@ fn try_move_player(ecs: &mut World, dx: i32, dy: i32) -> RunState {
 
             return RunState::Running;
         } else if map.tiles[dest_index] != crate::TileType::Wall {
-            let new_attack = AttackIntent {
-                name: "punch".to_string(),
-                loc: Point::new(new_x, new_y),
-                range: crate::RangeType::Single,
-            };
-            attacks
-                .insert(*player, new_attack)
-                .expect("Failed to insert new attack from player");
+            // TODO: implement push
+            let mut log = ecs.fetch_mut::<crate::gamelog::GameLog>();
+            log.entries
+                .push(format!("You can't make it through this way"));
 
-            return RunState::Running;
+            return RunState::AwaitingInput;
         }
     }
 
@@ -54,13 +49,19 @@ fn select_card(gs: &mut State, index: usize) -> RunState {
     deck.selected = index as i32;
     let attack_type = deck.hand[index];
 
+    let shape = crate::move_type::get_attack_shape(&attack_type);
+    let range = crate::move_type::get_attack_range(&attack_type);
+
+    // empty-shaped moves are not targetted
+    if shape == crate::RangeType::Empty {
+        // TODO: should this skip targetting
+    }
+
     // update targetting specific state
     let players = gs.ecs.read_storage::<Player>();
     let positions = gs.ecs.read_storage::<Position>();
     let viewsheds = gs.ecs.read_storage::<Viewshed>();
     let map = gs.ecs.fetch::<Map>();
-
-    let range = crate::move_type::get_attack_range(&attack_type);
 
     for (_player, pos, viewshed) in (&players, &positions, &viewsheds).join() {
         let mut tab_targets = Vec::new();

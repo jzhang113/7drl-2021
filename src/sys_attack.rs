@@ -13,7 +13,7 @@ impl<'a> System<'a> for AttackSystem {
             crate::add_event(
                 &crate::EventType::Damage {
                     source_name: attack.name.clone(),
-                    amount: 1,
+                    amount: attack.damage,
                 },
                 &attack.range,
                 attack.loc,

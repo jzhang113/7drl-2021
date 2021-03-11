@@ -5,6 +5,7 @@ use rltk::Point;
 pub enum AttackType {
     Sweep,
     Punch,
+    Super,
 }
 
 // check if an attack is can be executed
@@ -17,17 +18,49 @@ pub fn is_attack_valid(attack_type: &AttackType, point1: Point, point2: Point) -
 }
 
 // convert an attack into an intent that can be executed by the event system
-pub fn get_attack_intent(attack_type: &AttackType, loc: Point) -> AttackIntent {
+pub fn get_attack_intent(
+    attack_type: &AttackType,
+    loc: Point,
+    attack_modifier: Option<AttackType>,
+) -> AttackIntent {
     let name = get_attack_name(attack_type);
     let range = get_attack_shape(attack_type);
+    let damage = get_attack_power(attack_type);
 
-    AttackIntent { name, loc, range }
+    match attack_modifier {
+        None => AttackIntent {
+            name,
+            damage,
+            loc,
+            range,
+        },
+        Some(modifier) => {
+            let modifier_name = get_attack_name(&modifier);
+            let modifier_damage = get_attack_power(&modifier);
+
+            AttackIntent {
+                name: format!("{} {}", modifier_name, name),
+                damage: damage + modifier_damage,
+                loc,
+                range,
+            }
+        }
+    }
 }
 
 pub fn get_attack_range(attack_type: &AttackType) -> i32 {
     match attack_type {
         AttackType::Sweep => 1,
         AttackType::Punch => 1,
+        AttackType::Super => 2,
+    }
+}
+
+pub fn get_attack_power(attack_type: &AttackType) -> i32 {
+    match attack_type {
+        AttackType::Sweep => 1,
+        AttackType::Punch => 1,
+        AttackType::Super => 2,
     }
 }
 
@@ -35,6 +68,7 @@ pub fn get_attack_shape(attack_type: &AttackType) -> RangeType {
     match attack_type {
         AttackType::Sweep => RangeType::Square { size: 1 },
         AttackType::Punch => RangeType::Single,
+        AttackType::Super => RangeType::Empty,
     }
 }
 
@@ -42,6 +76,7 @@ pub fn get_attack_name(attack_type: &AttackType) -> String {
     let name = match attack_type {
         AttackType::Sweep => "sweep",
         AttackType::Punch => "punch",
+        AttackType::Super => "super",
     };
 
     name.to_string()

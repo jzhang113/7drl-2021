@@ -73,7 +73,8 @@ impl<'a> System<'a> for AiSystem {
                         }
                     }
                     Some(attack) => {
-                        let intent = crate::move_type::get_attack_intent(attack, player_point);
+                        let intent =
+                            crate::move_type::get_attack_intent(attack, player_point, None);
 
                         attacks
                             .insert(ent, intent)

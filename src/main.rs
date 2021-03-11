@@ -41,6 +41,7 @@ pub struct State {
     cursor: rltk::Point,
     tab_targets: Vec<rltk::Point>,
     tab_index: usize,
+    attack_modifier: Option<AttackType>,
 }
 
 impl State {
@@ -108,7 +109,11 @@ impl GameState for State {
                 next_status = player::player_input(self, ctx);
             }
             RunState::Targetting { attack_type } => {
-                let range = get_attack_range(&attack_type);
+                let mut range = get_attack_range(&attack_type);
+                if let Some(modifier) = self.attack_modifier {
+                    range += crate::move_type::get_attack_range(&modifier);
+                }
+
                 let result = player::ranged_target(self, ctx, range);
                 match result.0 {
                     player::SelectionResult::Canceled => {
@@ -122,14 +127,25 @@ impl GameState for State {
                             let mut deck = self.ecs.fetch_mut::<deck::Deck>();
                             deck.discard_selected();
 
-                            let target = result.1.unwrap();
-                            let intent = crate::move_type::get_attack_intent(&attack_type, target);
-                            let player = self.ecs.fetch::<Entity>();
-                            let mut attacks = self.ecs.write_storage::<AttackIntent>();
+                            let shape = crate::move_type::get_attack_shape(&attack_type);
+                            if shape == crate::RangeType::Empty {
+                                self.attack_modifier = Some(attack_type);
+                            } else {
+                                let target = result.1.unwrap();
+                                let intent = crate::move_type::get_attack_intent(
+                                    &attack_type,
+                                    target,
+                                    self.attack_modifier,
+                                );
+                                let player = self.ecs.fetch::<Entity>();
+                                let mut attacks = self.ecs.write_storage::<AttackIntent>();
 
-                            attacks
-                                .insert(*player, intent)
-                                .expect("Failed to insert attack from Player");
+                                attacks
+                                    .insert(*player, intent)
+                                    .expect("Failed to insert attack from Player");
+
+                                self.attack_modifier = None;
+                            }
                         }
 
                         next_status = RunState::Running;
@@ -172,6 +188,7 @@ fn main() -> rltk::BError {
         cursor: rltk::Point::zero(),
         tab_targets: Vec::new(),
         tab_index: 0,
+        attack_modifier: None,
     };
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
@@ -215,7 +232,7 @@ fn main() -> rltk::BError {
     gs.ecs.insert(player);
 
     let deck = deck::Deck::new(vec![
-        AttackType::Punch,
+        AttackType::Super,
         AttackType::Punch,
         AttackType::Punch,
     ]);

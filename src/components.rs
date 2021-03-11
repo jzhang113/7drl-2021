@@ -77,6 +77,7 @@ pub struct DeathTrigger {
 #[derive(Component)]
 pub struct AttackIntent {
     pub name: String,
+    pub damage: i32,
     pub loc: rltk::Point,
     pub range: crate::RangeType,
 }

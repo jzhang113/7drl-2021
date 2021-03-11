@@ -1,5 +1,6 @@
 use rltk::Point;
 
+#[derive(PartialEq)]
 pub enum RangeType {
     Empty,
     Single,
