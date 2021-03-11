@@ -11,6 +11,7 @@ mod gui;
 mod map;
 mod move_type;
 mod player;
+mod spawner;
 mod sys_ai;
 mod sys_attack;
 mod sys_death;
@@ -149,36 +150,15 @@ fn main() -> rltk::BError {
     gs.ecs.insert(RunState::Running);
     gs.ecs.insert(sys_particle::ParticleBuilder::new());
 
-    let map = map::build_rogue_map(WIDTH, HEIGHT);
+    let mut rng = rltk::RandomNumberGenerator::new();
+    let mut map = map::build_rogue_map(WIDTH, HEIGHT, &mut rng);
     let player_pos = map.rooms[0].center();
 
+    let mut spawner = spawner::Spawner::new(&mut gs.ecs, &mut map.blocked_tiles, &mut rng, WIDTH);
+
     for room in map.rooms.iter().skip(1) {
-        let (x, y) = room.center().to_tuple();
-        let _enemy = gs
-            .ecs
-            .create_entity()
-            .with(Position { x, y })
-            .with(Renderable {
-                symbol: rltk::to_cp437('x'),
-                fg: RGB::named(rltk::LIGHT_BLUE),
-                bg: RGB::named(rltk::BLACK),
-            })
-            .with(Schedulable {
-                current: 0,
-                base: 24,
-                delta: 4,
-            })
-            .with(Viewshed {
-                visible: Vec::new(),
-                dirty: true,
-                range: 8,
-            })
-            .with(BlocksTile)
-            .with(Health { current: 5, max: 5 })
-            .with(Moveset {
-                moves: vec![AttackType::Punch],
-            })
-            .build();
+        spawner.build(&room, 0, 4, spawner::build_mook);
+        spawner.build(&room, 0, 3, spawner::build_barrel);
     }
 
     gs.ecs.insert(map);
@@ -188,60 +168,9 @@ fn main() -> rltk::BError {
     };
     gs.ecs.insert(log);
 
-    let player = gs
-        .ecs
-        .create_entity()
-        .with(Position {
-            x: player_pos.x,
-            y: player_pos.y,
-        })
-        .with(Renderable {
-            symbol: rltk::to_cp437('@'),
-            fg: RGB::named(rltk::YELLOW),
-            bg: RGB::named(rltk::BLACK),
-        })
-        .with(Player)
-        .with(Schedulable {
-            current: 0,
-            base: 24,
-            delta: 4,
-        })
-        .with(Viewshed {
-            visible: Vec::new(),
-            dirty: true,
-            range: 8,
-        })
-        .with(CanReactFlag)
-        //.with(BlocksTile)
-        .with(Health {
-            current: 10,
-            max: 10,
-        })
-        .build();
+    let player = spawner::build_player(&mut gs.ecs, player_pos);
     gs.ecs.insert(player);
-
-    let _explosive_barrel = gs
-        .ecs
-        .create_entity()
-        .with(Position {
-            x: player_pos.x - 1,
-            y: player_pos.y - 1,
-        })
-        .with(Renderable {
-            symbol: rltk::to_cp437('#'),
-            fg: RGB::named(rltk::YELLOW),
-            bg: RGB::named(rltk::BLACK),
-        })
-        .with(BlocksTile)
-        .with(Health { current: 2, max: 2 })
-        .with(DeathTrigger {
-            event: EventType::Damage {
-                source_name: "explosion".to_string(),
-                amount: 1,
-            },
-            range: RangeType::Square { size: 1 },
-        })
-        .build();
+    gs.ecs.insert(rng);
 
     rltk::main_loop(context, gs)
 }

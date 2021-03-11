@@ -126,7 +126,7 @@ impl Map {
     }
 }
 
-pub fn build_rogue_map(width: i32, height: i32) -> Map {
+pub fn build_rogue_map(width: i32, height: i32, rng: &mut rltk::RandomNumberGenerator) -> Map {
     let dim = (width * height).try_into().unwrap();
     let mut map = Map {
         tiles: vec![TileType::Wall; dim],
@@ -138,7 +138,6 @@ pub fn build_rogue_map(width: i32, height: i32) -> Map {
         blocked_tiles: vec![false; dim],
     };
 
-    let mut rng = rltk::RandomNumberGenerator::new();
     const MAX_ROOMS: i32 = 30;
     const MIN_ROOM_WIDTH: i32 = 6;
     const MAX_ROOM_WIDTH: i32 = 12;

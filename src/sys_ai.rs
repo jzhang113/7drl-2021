@@ -32,14 +32,8 @@ impl<'a> System<'a> for AiSystem {
         let mut turn_done = Vec::new();
         let player_pos = positions.get(*player).unwrap();
 
-        for (ent, _turn, pos, viewshed, moveset) in (
-            &entities,
-            &can_act,
-            &positions,
-            &viewsheds,
-            (&movesets).maybe(),
-        )
-            .join()
+        for (ent, _turn, pos, viewshed, moveset) in
+            (&entities, &can_act, &positions, &viewsheds, &movesets).join()
         {
             if ent == *player {
                 // player turn, handled in player.rs
@@ -51,40 +45,39 @@ impl<'a> System<'a> for AiSystem {
                 .iter()
                 .any(|pos| pos.x == player_pos.x && pos.y == player_pos.y)
             {
-                println!("{:?} sees the player and yells", ent);
+                let mut attack = None;
+                let orig_point = rltk::Point::new(pos.x, pos.y);
+                let player_point = rltk::Point::new(player_pos.x, player_pos.y);
 
-                if let Some(moveset) = moveset {
-                    let mut attack = None;
-                    let orig_point = rltk::Point::new(pos.x, pos.y);
-                    let player_point = rltk::Point::new(player_pos.x, player_pos.y);
+                for potential_attack in moveset.moves.iter() {
+                    if crate::move_type::is_attack_valid(potential_attack, orig_point, player_point)
+                    {
+                        attack = Some(potential_attack);
+                        break;
+                    }
+                }
 
-                    for potential_attack in moveset.moves.iter() {
-                        if crate::move_type::is_attack_valid(
-                            potential_attack,
-                            orig_point,
-                            player_point,
-                        ) {
-                            attack = Some(potential_attack);
-                            break;
+                match attack {
+                    None => {
+                        let curr_index = map.get_index(pos.x, pos.y);
+                        let player_index = map.get_index(player_pos.x, player_pos.y);
+                        let movement = move_towards(&*map, curr_index, player_index);
+
+                        match movement {
+                            None => {}
+                            Some(movement) => {
+                                moves
+                                    .insert(ent, movement)
+                                    .expect("Failed to insert movement from AI");
+                            }
                         }
                     }
+                    Some(attack) => {
+                        let intent = crate::move_type::get_attack_intent(attack, player_point);
 
-                    match attack {
-                        None => {
-                            let curr_index = map.get_index(pos.x, pos.y);
-                            let player_index = map.get_index(player_pos.x, player_pos.y);
-                            let movement = move_towards(&*map, curr_index, player_index);
-                            moves
-                                .insert(ent, movement)
-                                .expect("Failed to insert movement from AI");
-                        }
-                        Some(attack) => {
-                            let intent = crate::move_type::get_attack_intent(attack, player_point);
-
-                            attacks
-                                .insert(ent, intent)
-                                .expect("Failed to insert attack from AI");
-                        }
+                        attacks
+                            .insert(ent, intent)
+                            .expect("Failed to insert attack from AI");
                     }
                 }
 
@@ -98,9 +91,13 @@ impl<'a> System<'a> for AiSystem {
     }
 }
 
-fn move_towards(map: &Map, curr_index: usize, target_index: usize) -> MoveIntent {
+fn move_towards(map: &Map, curr_index: usize, target_index: usize) -> Option<MoveIntent> {
     let path = rltk::a_star_search(curr_index, target_index, &*map);
-    let next_pos = map.index_to_point2d(path.steps[1]);
 
-    MoveIntent { loc: next_pos }
+    if path.success && path.steps.len() > 1 {
+        let next_pos = map.index_to_point2d(path.steps[1]);
+        return Some(MoveIntent { loc: next_pos });
+    } else {
+        return None;
+    }
 }
