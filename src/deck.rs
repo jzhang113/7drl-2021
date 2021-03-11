@@ -6,18 +6,18 @@ const HAND_LIMIT: usize = 7;
 
 pub struct Deck {
     cards: Vec<AttackType>,
+    discard: Vec<AttackType>,
     pub hand: Vec<AttackType>,
     pub selected: i32,
-    next_draw: usize,
 }
 
 impl Deck {
     pub fn new(cards: Vec<AttackType>) -> Self {
         Deck {
             cards,
+            discard: Vec::new(),
             hand: Vec::new(),
             selected: -1,
-            next_draw: 0,
         }
     }
 
@@ -26,21 +26,36 @@ impl Deck {
             return;
         }
 
-        self.next_draw += 1;
-        if self.next_draw >= self.cards.len() {
+        if self.cards.len() == 0 {
             self.shuffle();
         }
 
-        let draw = self.cards[self.next_draw];
-        self.hand.push(draw);
+        // draw can be empty if both the discard and library are empty
+        let draw = self.cards.pop();
+        if let Some(draw) = draw {
+            self.hand.push(draw);
+        }
+    }
+
+    pub fn discard_selected(&mut self) {
+        if self.selected < 0 || (self.selected as usize) >= self.hand.len() {
+            return;
+        }
+
+        let card = self.hand.remove(self.selected as usize);
+        self.discard.push(card);
+        self.selected = -1;
     }
 
     pub fn cards_remaining(&self) -> i32 {
-        (self.cards.len() - self.next_draw) as i32
+        self.cards.len() as i32
     }
 
     fn shuffle(&mut self) {
+        for card in self.discard.drain(..) {
+            self.cards.push(card);
+        }
+
         self.cards.shuffle(&mut thread_rng());
-        self.next_draw = 0;
     }
 }

@@ -120,7 +120,7 @@ impl GameState for State {
                     player::SelectionResult::Selected => {
                         {
                             let mut deck = self.ecs.fetch_mut::<deck::Deck>();
-                            deck.selected = -1;
+                            deck.discard_selected();
 
                             let target = result.1.unwrap();
                             let intent = crate::move_type::get_attack_intent(&attack_type, target);
