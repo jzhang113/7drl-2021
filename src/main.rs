@@ -120,8 +120,8 @@ fn main() -> rltk::BError {
 
     let context = RltkBuilder::simple(WIDTH, CONSOLE_HEIGHT)?
         .with_title("Roguelike Tutorial")
-        .with_font("terminal8x8.png", 8, 8)
-        .with_simple_console_no_bg(WIDTH, CONSOLE_HEIGHT, "terminal8x8.png")
+        .with_font("Zilk-16x16.png", 16, 16)
+        .with_simple_console_no_bg(WIDTH, CONSOLE_HEIGHT, "Zilk-16x16.png")
         .build()
         .expect("Failed to build console");
 
@@ -171,11 +171,13 @@ fn main() -> rltk::BError {
             .with(Viewshed {
                 visible: Vec::new(),
                 dirty: true,
-                range: 6,
+                range: 8,
             })
             .with(BlocksTile)
             .with(Health { current: 5, max: 5 })
-            .with(Moveset { moves: vec![] })
+            .with(Moveset {
+                moves: vec![AttackType::Punch],
+            })
             .build();
     }
 
@@ -233,7 +235,10 @@ fn main() -> rltk::BError {
         .with(BlocksTile)
         .with(Health { current: 2, max: 2 })
         .with(DeathTrigger {
-            event: EventType::Damage { amount: 1 },
+            event: EventType::Damage {
+                source_name: "explosion".to_string(),
+                amount: 1,
+            },
             range: RangeType::Square { size: 1 },
         })
         .build();

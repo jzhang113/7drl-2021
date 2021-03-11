@@ -4,10 +4,10 @@ use specs::prelude::*;
 use std::sync::{Arc, Mutex};
 
 mod event_type;
-mod range_type;
+pub mod range_type;
 
 pub use event_type::EventType;
-pub use range_type::RangeType;
+pub use range_type::*;
 
 lazy_static! {
     static ref STACK: Mutex<Vec<Event>> = Mutex::new(Vec::new());

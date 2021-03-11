@@ -3,21 +3,27 @@ use rltk::Point;
 use specs::prelude::*;
 
 pub enum EventType {
-    Damage { amount: i32 },
+    Damage { source_name: String, amount: i32 },
     ParticleSpawn { request: ParticleRequest },
     // ShowCard { request: CardRequest, offset: i32 },
 }
 
 pub fn get_name(event: &EventType) -> Option<String> {
     match event {
-        EventType::Damage { .. } => Some("Damage".to_string()),
+        EventType::Damage {
+            source_name,
+            amount: _,
+        } => Some(source_name.clone()),
         _ => None,
     }
 }
 
 pub fn get_resolver(event: &EventType) -> Box<dyn EventResolver + Send> {
     match event {
-        EventType::Damage { amount } => Box::new(DamageResolver { amount: *amount }),
+        EventType::Damage {
+            source_name: _,
+            amount,
+        } => Box::new(DamageResolver { amount: *amount }),
         EventType::ParticleSpawn { request } => Box::new(ParticleResolver { request: *request }),
     }
 }

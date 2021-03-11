@@ -51,43 +51,56 @@ impl<'a> System<'a> for AiSystem {
                 .iter()
                 .any(|pos| pos.x == player_pos.x && pos.y == player_pos.y)
             {
+                println!("{:?} sees the player and yells", ent);
+
                 if let Some(moveset) = moveset {
+                    let mut attack = None;
+                    let orig_point = rltk::Point::new(pos.x, pos.y);
+                    let player_point = rltk::Point::new(player_pos.x, player_pos.y);
+
                     for potential_attack in moveset.moves.iter() {
-                        crate::move_type::is_attack_valid(
+                        if crate::move_type::is_attack_valid(
                             potential_attack,
-                            rltk::Point::new(pos.x, pos.y),
-                        )
+                            orig_point,
+                            player_point,
+                        ) {
+                            attack = Some(potential_attack);
+                            break;
+                        }
                     }
-                } else {
-                    // if we can see the player move towards them
-                    let curr_index = map.get_index(pos.x, pos.y);
-                    let player_index = map.get_index(player_pos.x, player_pos.y);
-                    let path = rltk::a_star_search(curr_index, player_index, &*map);
-                    let next_pos = map.index_to_point2d(path.steps[1]);
-                    if next_pos.x == player_pos.x && next_pos.y == player_pos.y {
-                        let attack = AttackIntent {
-                            loc: next_pos,
-                            range: crate::RangeType::Single,
-                        };
-                        attacks
-                            .insert(ent, attack)
-                            .expect("Failed to insert attack from AI");
-                    } else {
-                        let movement = MoveIntent { loc: next_pos };
-                        moves
-                            .insert(ent, movement)
-                            .expect("Failed to insert movement from AI");
+
+                    match attack {
+                        None => {
+                            let curr_index = map.get_index(pos.x, pos.y);
+                            let player_index = map.get_index(player_pos.x, player_pos.y);
+                            let movement = move_towards(&*map, curr_index, player_index);
+                            moves
+                                .insert(ent, movement)
+                                .expect("Failed to insert movement from AI");
+                        }
+                        Some(attack) => {
+                            let intent = crate::move_type::get_attack_intent(attack, player_point);
+
+                            attacks
+                                .insert(ent, intent)
+                                .expect("Failed to insert attack from AI");
+                        }
                     }
                 }
-            } else {
-                // else wait for now
-            }
 
-            turn_done.push(ent);
+                turn_done.push(ent);
+            }
         }
 
         for done in turn_done.iter() {
             can_act.remove(*done);
         }
     }
+}
+
+fn move_towards(map: &Map, curr_index: usize, target_index: usize) -> MoveIntent {
+    let path = rltk::a_star_search(curr_index, target_index, &*map);
+    let next_pos = map.index_to_point2d(path.steps[1]);
+
+    MoveIntent { loc: next_pos }
 }

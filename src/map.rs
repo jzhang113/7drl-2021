@@ -140,9 +140,9 @@ pub fn build_rogue_map(width: i32, height: i32) -> Map {
 
     let mut rng = rltk::RandomNumberGenerator::new();
     const MAX_ROOMS: i32 = 30;
-    const MIN_ROOM_WIDTH: i32 = 3;
+    const MIN_ROOM_WIDTH: i32 = 6;
     const MAX_ROOM_WIDTH: i32 = 12;
-    const MIN_ROOM_HEIGHT: i32 = 3;
+    const MIN_ROOM_HEIGHT: i32 = 6;
     const MAX_ROOM_HEIGHT: i32 = 12;
 
     for _ in 0..MAX_ROOMS {

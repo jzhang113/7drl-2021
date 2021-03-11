@@ -28,6 +28,7 @@ fn try_move_player(ecs: &mut World, dx: i32, dy: i32) -> RunState {
             return RunState::Running;
         } else if map.tiles[dest_index] != crate::TileType::Wall {
             let new_attack = AttackIntent {
+                name: "punch".to_string(),
                 loc: rltk::Point::new(new_x, new_y),
                 range: crate::RangeType::Single,
             };

@@ -11,7 +11,10 @@ impl<'a> System<'a> for AttackSystem {
 
         for (_, attack) in (&entities, &attacks).join() {
             crate::add_event(
-                &crate::EventType::Damage { amount: 1 },
+                &crate::EventType::Damage {
+                    source_name: attack.name.clone(),
+                    amount: 1,
+                },
                 &attack.range,
                 attack.loc,
                 true,
