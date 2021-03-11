@@ -11,3 +11,4 @@ rltk = { version = "0.8.1" }
 specs = { version = "0.16.1", features = ["specs-derive"] }
 lazy_static = { version = "1.4.0" }
 ezing = { version = "0.2.1" }
+rand = {version = "0.8.0"}

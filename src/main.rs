@@ -5,6 +5,7 @@ use rltk::{GameState, Rltk, RGB};
 use specs::prelude::*;
 
 mod components;
+mod deck;
 mod events;
 mod gamelog;
 mod gui;
@@ -27,15 +28,19 @@ pub use map::{Map, TileType};
 pub use move_type::*;
 pub use sys_particle::{CardRequest, ParticleBuilder, ParticleRequest};
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
     AwaitingInput,
+    Targetting { attack_type: AttackType },
     Running,
 }
 
 pub struct State {
     ecs: World,
     tick: i32,
+    cursor: rltk::Point,
+    tab_targets: Vec<rltk::Point>,
+    tab_index: usize,
 }
 
 impl State {
@@ -78,8 +83,10 @@ impl GameState for State {
         gui::draw_renderables(&self.ecs, ctx);
         gui::draw_cards(&self.ecs, ctx);
         gui::draw_ui(&self.ecs, ctx);
+        gui::draw_hand(&self.ecs, ctx);
 
         let mut next_status;
+
         // wrapping to limit borrowed lifetimes
         {
             let player = self.ecs.fetch::<Entity>();
@@ -89,6 +96,9 @@ impl GameState for State {
                 Some(_) => ctx.print(30, 1, format!("YOUR TURN {}", self.tick)),
             }
 
+            let deck = self.ecs.fetch::<deck::Deck>();
+            ctx.print(30, 2, format!("{} cards remain", deck.cards_remaining()));
+
             // get the current RunState
             next_status = *self.ecs.fetch::<RunState>();
         }
@@ -96,6 +106,36 @@ impl GameState for State {
         match next_status {
             RunState::AwaitingInput => {
                 next_status = player::player_input(self, ctx);
+            }
+            RunState::Targetting { attack_type } => {
+                let range = get_attack_range(&attack_type);
+                let result = player::ranged_target(self, ctx, range);
+                match result.0 {
+                    player::SelectionResult::Canceled => {
+                        let mut deck = self.ecs.fetch_mut::<deck::Deck>();
+                        deck.selected = -1;
+                        next_status = RunState::AwaitingInput;
+                    }
+                    player::SelectionResult::NoResponse => {}
+                    player::SelectionResult::Selected => {
+                        {
+                            let mut deck = self.ecs.fetch_mut::<deck::Deck>();
+                            deck.selected = -1;
+
+                            let target = result.1.unwrap();
+                            let intent = crate::move_type::get_attack_intent(&attack_type, target);
+                            let player = self.ecs.fetch::<Entity>();
+                            let mut attacks = self.ecs.write_storage::<AttackIntent>();
+
+                            attacks
+                                .insert(*player, intent)
+                                .expect("Failed to insert attack from Player");
+                        }
+
+                        next_status = RunState::Running;
+                        player::end_turn_cleanup(&mut self.ecs);
+                    }
+                }
             }
             RunState::Running => {
                 // uncomment while loop to skip rendering intermediate states
@@ -129,6 +169,9 @@ fn main() -> rltk::BError {
     let mut gs = State {
         ecs: World::new(),
         tick: 0,
+        cursor: rltk::Point::zero(),
+        tab_targets: Vec::new(),
+        tab_index: 0,
     };
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
@@ -170,6 +213,14 @@ fn main() -> rltk::BError {
 
     let player = spawner::build_player(&mut gs.ecs, player_pos);
     gs.ecs.insert(player);
+
+    let deck = deck::Deck::new(vec![
+        AttackType::Punch,
+        AttackType::Punch,
+        AttackType::Punch,
+    ]);
+    gs.ecs.insert(deck);
+
     gs.ecs.insert(rng);
 
     rltk::main_loop(context, gs)

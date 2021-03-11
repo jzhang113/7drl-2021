@@ -109,6 +109,43 @@ fn draw_card(card: &CardRequest, offset: i32, ctx: &mut Rltk) {
     ctx.print(51 + 3 * offset, 11, card.name.clone());
 }
 
+pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
+    let deck = ecs.fetch::<crate::deck::Deck>();
+
+    const CARD_WIDTH: i32 = 10;
+    const CARD_HEIGHT: i32 = 15;
+    const CARD_INIT_X: i32 = 1;
+    const CARD_INIT_Y: i32 = 40;
+
+    for (i, card) in deck.hand.iter().enumerate() {
+        let index = i as i32;
+        let fore_color;
+
+        if index == deck.selected {
+            fore_color = RGB::named(rltk::GOLD);
+        } else {
+            fore_color = RGB::named(rltk::WHITE);
+        }
+
+        ctx.draw_box(
+            CARD_INIT_X + (CARD_WIDTH + 1) * (i as i32),
+            CARD_INIT_Y,
+            CARD_WIDTH,
+            CARD_HEIGHT,
+            fore_color,
+            RGB::named(rltk::BLACK),
+        );
+
+        let attack_name = crate::move_type::get_attack_name(card);
+
+        ctx.print(
+            CARD_INIT_X + 1 + (CARD_WIDTH + 1) * (i as i32),
+            CARD_INIT_Y + 1,
+            format!("{}) {}", i + 1, attack_name),
+        );
+    }
+}
+
 pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
     let health = ecs.read_storage::<Health>();
     let player = ecs.fetch::<Entity>();
