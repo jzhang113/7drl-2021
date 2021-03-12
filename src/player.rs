@@ -50,7 +50,10 @@ fn select_card(gs: &mut State, index: usize) -> RunState {
     let attack_type = deck.hand[index];
 
     let shape = crate::move_type::get_attack_shape(&attack_type);
-    let range = crate::move_type::get_attack_range(&attack_type);
+    let mut range = crate::move_type::get_attack_range(&attack_type);
+    if let Some(modifier) = gs.attack_modifier {
+        range += crate::move_type::get_attack_range(&modifier);
+    }
 
     // empty-shaped moves are not targetted
     if shape == crate::RangeType::Empty {

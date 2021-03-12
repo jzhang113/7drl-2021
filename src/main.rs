@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate lazy_static;
 
+rltk::embedded_resource!(FONT,"../resources/Zilk-16x16.png");
+
 use rltk::{GameState, Rltk, RGB};
 use specs::prelude::*;
 
@@ -170,6 +172,7 @@ impl GameState for State {
 
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
+    rltk::link_resource!(FONT,"resources/Zilk-16x16.png");
 
     const WIDTH: i32 = 80;
     const HEIGHT: i32 = 50;
