@@ -49,6 +49,7 @@ impl EventResolver for DamageResolver {
                         lifetime: 600.0,
                     },
                 },
+                None,
                 &crate::RangeType::Empty,
                 Point::zero(),
                 false,

@@ -23,13 +23,19 @@ struct Event {
     invokes_reaction: bool,
 }
 
-pub fn add_event(event_type: &EventType, range: &RangeType, loc: Point, invokes_reaction: bool) {
+pub fn add_event(
+    event_type: &EventType,
+    source: Option<Entity>,
+    range: &RangeType,
+    loc: Point,
+    invokes_reaction: bool,
+) {
     let mut stack = STACK.lock().expect("Failed to lock STACK");
     let event = Event {
         attack_intent: None,
         resolver: event_type::get_resolver(event_type),
         name: event_type::get_name(event_type),
-        source: None,
+        source,
         target_tiles: Arc::new(range_type::resolve_range_at(range, loc)),
         invokes_reaction,
     };
@@ -37,7 +43,7 @@ pub fn add_event(event_type: &EventType, range: &RangeType, loc: Point, invokes_
     stack.push(event);
 }
 
-pub fn add_damage_event(intent: &AttackIntent, invokes_reaction: bool) {
+pub fn add_damage_event(intent: &AttackIntent, source: Option<Entity>, invokes_reaction: bool) {
     let mut stack = STACK.lock().expect("Failed to lock STACK");
 
     let damage_event = EventType::Damage {
@@ -50,7 +56,7 @@ pub fn add_damage_event(intent: &AttackIntent, invokes_reaction: bool) {
         attack_intent: Some(*intent),
         resolver: event_type::get_resolver(&damage_event),
         name: Some(crate::move_type::get_intent_combined_name(intent)),
-        source: None,
+        source,
         target_tiles: Arc::new(range_type::resolve_range_at(range, intent.loc)),
         invokes_reaction,
     };
@@ -81,7 +87,7 @@ pub fn process_stack(ecs: &mut World) {
                         );
                     }
 
-                    entities_hit.retain(|ent| entity_can_react(ecs, ent));
+                    entities_hit.retain(|ent| entity_can_react(ecs, event.source, ent));
 
                     // check if there are entities that can respond
                     if event.invokes_reaction && !entities_hit.is_empty() {
@@ -122,9 +128,20 @@ fn get_affected_entities(ecs: &mut World, targets: &Vec<Point>) -> Vec<Entity> {
     affected
 }
 
-fn entity_can_react(ecs: &mut World, target: &Entity) -> bool {
-    let can_react = ecs.read_storage::<super::CanReactFlag>();
-    can_react.get(*target).is_some()
+fn entity_can_react(ecs: &mut World, source: Option<Entity>, target: &Entity) -> bool {
+    let react_storage = ecs.read_storage::<super::CanReactFlag>();
+    let can_react = react_storage.get(*target).is_some();
+
+    match source {
+        None => can_react,
+        Some(source) => {
+            if source == *target {
+                false
+            } else {
+                can_react
+            }
+        }
+    }
 }
 
 fn process_event(ecs: &mut World, event: Event) {
