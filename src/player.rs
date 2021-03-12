@@ -217,11 +217,11 @@ pub fn ranged_target(
     let viewsheds = gs.ecs.read_storage::<Viewshed>();
 
     ctx.print_color(
-        5,
-        0,
-        rltk::RGB::named(rltk::YELLOW),
+        crate::gui::MAP_X,
+        crate::gui::MAP_Y - 1,
+        rltk::RGB::named(rltk::GOLD),
         rltk::RGB::named(rltk::BLACK),
-        "Select Target:",
+        "Select Target",
     );
 
     ctx.set_active_console(0);
@@ -233,7 +233,11 @@ pub fn ranged_target(
         for idx in viewshed.visible.iter() {
             let distance = rltk::DistanceAlg::Manhattan.distance2d(Point::new(pos.x, pos.y), *idx);
             if distance <= range as f32 {
-                ctx.set_bg(idx.x, idx.y, rltk::RGB::named(rltk::BLUE));
+                ctx.set_bg(
+                    crate::gui::MAP_X + idx.x,
+                    crate::gui::MAP_Y + idx.y,
+                    rltk::RGB::named(rltk::BLUE),
+                );
                 available_cells.push(idx);
             }
         }
@@ -250,7 +254,11 @@ pub fn ranged_target(
     } else {
         cursor_color = rltk::RGB::named(rltk::RED);
     }
-    ctx.set_bg(gs.cursor.x, gs.cursor.y, cursor_color);
+    ctx.set_bg(
+        crate::gui::MAP_X + gs.cursor.x,
+        crate::gui::MAP_Y + gs.cursor.y,
+        cursor_color,
+    );
     ctx.set_active_console(1);
 
     match ctx.key {

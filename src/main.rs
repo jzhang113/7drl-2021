@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 
-rltk::embedded_resource!(FONT,"../resources/Zilk-16x16.png");
+rltk::embedded_resource!(FONT, "../resources/Zilk-16x16.png");
 
 use rltk::{GameState, Rltk, RGB};
 use specs::prelude::*;
@@ -92,15 +92,12 @@ impl GameState for State {
 
         // wrapping to limit borrowed lifetimes
         {
-            let player = self.ecs.fetch::<Entity>();
-            let can_act = self.ecs.read_storage::<CanActFlag>();
-            match can_act.get(*player) {
-                None => ctx.print(30, 1, format!("OPPONENT TURN {}", self.tick)),
-                Some(_) => ctx.print(30, 1, format!("YOUR TURN {}", self.tick)),
-            }
-
-            let deck = self.ecs.fetch::<deck::Deck>();
-            ctx.print(30, 2, format!("{} cards remain", deck.cards_remaining()));
+            // let player = self.ecs.fetch::<Entity>();
+            // let can_act = self.ecs.read_storage::<CanActFlag>();
+            // match can_act.get(*player) {
+            //     None => ctx.print(30, 1, format!("OPPONENT TURN {}", self.tick)),
+            //     Some(_) => ctx.print(30, 1, format!("YOUR TURN {}", self.tick)),
+            // }
 
             // get the current RunState
             next_status = *self.ecs.fetch::<RunState>();
@@ -172,16 +169,12 @@ impl GameState for State {
 
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
-    rltk::link_resource!(FONT,"resources/Zilk-16x16.png");
+    rltk::link_resource!(FONT, "resources/Zilk-16x16.png");
 
-    const WIDTH: i32 = 80;
-    const HEIGHT: i32 = 50;
-    const CONSOLE_HEIGHT: i32 = HEIGHT + 7;
-
-    let context = RltkBuilder::simple(WIDTH, CONSOLE_HEIGHT)?
+    let context = RltkBuilder::simple(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT)?
         .with_title("Roguelike Tutorial")
         .with_font("Zilk-16x16.png", 16, 16)
-        .with_simple_console_no_bg(WIDTH, CONSOLE_HEIGHT, "Zilk-16x16.png")
+        .with_simple_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png")
         .build()
         .expect("Failed to build console");
 
@@ -214,10 +207,11 @@ fn main() -> rltk::BError {
     gs.ecs.insert(sys_particle::ParticleBuilder::new());
 
     let mut rng = rltk::RandomNumberGenerator::new();
-    let mut map = map::build_rogue_map(WIDTH, HEIGHT, &mut rng);
+    let mut map = map::build_rogue_map(gui::MAP_W, gui::MAP_H, &mut rng);
     let player_pos = map.rooms[0].center();
 
-    let mut spawner = spawner::Spawner::new(&mut gs.ecs, &mut map.blocked_tiles, &mut rng, WIDTH);
+    let mut spawner =
+        spawner::Spawner::new(&mut gs.ecs, &mut map.blocked_tiles, &mut rng, gui::MAP_W);
 
     for room in map.rooms.iter().skip(1) {
         spawner.build(&room, 0, 4, spawner::build_mook);
@@ -236,8 +230,13 @@ fn main() -> rltk::BError {
 
     let deck = deck::Deck::new(vec![
         AttackType::Super,
+        AttackType::Super,
         AttackType::Punch,
         AttackType::Punch,
+        AttackType::Punch,
+        AttackType::Punch,
+        AttackType::Sweep,
+        AttackType::Sweep,
     ]);
     gs.ecs.insert(deck);
 

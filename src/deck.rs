@@ -51,6 +51,10 @@ impl Deck {
         self.cards.len() as i32
     }
 
+    pub fn cards_discarded(&self) -> i32 {
+        self.discard.len() as i32
+    }
+
     fn shuffle(&mut self) {
         for card in self.discard.drain(..) {
             self.cards.push(card);
