@@ -72,6 +72,22 @@ pub fn get_attack_shape(attack_type: &AttackType) -> RangeType {
     }
 }
 
+pub fn get_attack_speed(attack_type: &AttackType) -> i32 {
+    match attack_type {
+        AttackType::Sweep => 0,
+        AttackType::Punch => 1,
+        AttackType::Super => -2,
+    }
+}
+
+pub fn get_attack_guard(attack_type: &AttackType) -> i32 {
+    match attack_type {
+        AttackType::Sweep => 0,
+        AttackType::Punch => 0,
+        AttackType::Super => 0,
+    }
+}
+
 pub fn get_attack_name(attack_type: &AttackType) -> String {
     let name = match attack_type {
         AttackType::Sweep => "sweep",

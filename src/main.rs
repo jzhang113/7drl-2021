@@ -2,6 +2,7 @@
 extern crate lazy_static;
 
 rltk::embedded_resource!(FONT, "../resources/Zilk-16x16.png");
+rltk::embedded_resource!(ICONS, "../resources/custom_icons.png");
 
 use rltk::{GameState, Rltk, RGB};
 use specs::prelude::*;
@@ -76,6 +77,8 @@ impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         // cleanup
         ctx.set_active_console(0);
+        ctx.cls();
+        ctx.set_active_console(2);
         ctx.cls();
         ctx.set_active_console(1);
         ctx.cls();
@@ -170,11 +173,14 @@ impl GameState for State {
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
     rltk::link_resource!(FONT, "resources/Zilk-16x16.png");
+    rltk::link_resource!(ICONS, "resources/custom_icons.png");
 
     let context = RltkBuilder::simple(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT)?
         .with_title("Roguelike Tutorial")
         .with_font("Zilk-16x16.png", 16, 16)
+        .with_font("custom_icons.png", 16, 16)
         .with_simple_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png")
+        .with_sparse_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "custom_icons.png")
         .build()
         .expect("Failed to build console");
 

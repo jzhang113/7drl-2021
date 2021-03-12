@@ -146,7 +146,6 @@ fn draw_card(card: &CardRequest, offset: i32, ctx: &mut Rltk) {
 pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
     let deck = ecs.fetch::<crate::deck::Deck>();
 
-    ctx.set_active_console(0);
     for xpos in 0..CONSOLE_WIDTH {
         ctx.set(
             xpos,
@@ -172,7 +171,6 @@ pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
         RGB::named(rltk::WHITE),
         RGB::named(rltk::BLACK),
     );
-    ctx.set_active_console(1);
 
     // fix breaks
     ctx.set(
@@ -269,12 +267,43 @@ pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
         );
 
         let attack_name = crate::move_type::get_attack_name(card);
+        let xpos = start_x + 1 + (CARD_W + 1) * (i as i32);
+        let ypos = CARD_Y + 4;
 
-        ctx.print(
-            start_x + 1 + (CARD_W + 1) * (i as i32),
-            CARD_Y + 1,
-            format!("{}){}", i + 1, attack_name),
+        ctx.print(xpos, CARD_Y + 1, format!("{}) {}", i + 1, attack_name));
+
+        // stat values
+        let power_str = format!("{}", crate::move_type::get_attack_power(card));
+        let speed_str = format!("{}", crate::move_type::get_attack_speed(card));
+        let guard_str = format!("{}", crate::move_type::get_attack_guard(card));
+        ctx.print(xpos + 2 - (power_str.len() as i32), ypos, power_str);
+        ctx.print(xpos + 5 - (speed_str.len() as i32), ypos, speed_str);
+        ctx.print(xpos + 8 - (guard_str.len() as i32), ypos, guard_str);
+
+        // stat icons
+        ctx.set_active_console(2);
+        ctx.set(
+            xpos + 2,
+            ypos,
+            RGB::named(rltk::RED),
+            RGB::named(rltk::BLACK),
+            1,
         );
+        ctx.set(
+            xpos + 5,
+            ypos,
+            RGB::named(rltk::YELLOW),
+            RGB::named(rltk::BLACK),
+            2,
+        );
+        ctx.set(
+            xpos + 8,
+            ypos,
+            RGB::named(rltk::LIGHTBLUE),
+            RGB::named(rltk::BLACK),
+            0,
+        );
+        ctx.set_active_console(1);
     }
 }
 
