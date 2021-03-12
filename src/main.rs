@@ -108,9 +108,11 @@ impl GameState for State {
 
         match next_status {
             RunState::AwaitingInput => {
+                gui::update_controls_text(&self.ecs, ctx, &next_status);
                 next_status = player::player_input(self, ctx);
             }
             RunState::Targetting { attack_type } => {
+                gui::update_controls_text(&self.ecs, ctx, &next_status);
                 let mut range = get_attack_range(&attack_type);
                 if let Some(modifier) = self.attack_modifier {
                     range += crate::move_type::get_attack_range(&modifier);
@@ -179,8 +181,9 @@ fn main() -> rltk::BError {
         .with_title("Roguelike Tutorial")
         .with_font("Zilk-16x16.png", 16, 16)
         .with_font("custom_icons.png", 16, 16)
-        .with_simple_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png")
-        .with_sparse_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "custom_icons.png")
+        .with_simple_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png")   // main layer
+        .with_sparse_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "custom_icons.png") // custom icons
+        .with_sparse_console(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png")         // control line
         .build()
         .expect("Failed to build console");
 

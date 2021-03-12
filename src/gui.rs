@@ -17,7 +17,7 @@ const SIDE_W: i32 = 15;
 const SIDE_H: i32 = 50;
 
 pub const CONSOLE_WIDTH: i32 = MAP_W + SIDE_W + 2;
-pub const CONSOLE_HEIGHT: i32 = MAP_H + CARD_H + 1;
+pub const CONSOLE_HEIGHT: i32 = MAP_H + CARD_H + 2;
 
 const SHOW_MAP: bool = false;
 const SHOW_REND: bool = false;
@@ -146,15 +146,6 @@ fn draw_card(card: &CardRequest, offset: i32, ctx: &mut Rltk) {
 pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
     let deck = ecs.fetch::<crate::deck::Deck>();
 
-    for xpos in 0..CONSOLE_WIDTH {
-        ctx.set(
-            xpos,
-            CONSOLE_HEIGHT - 1,
-            RGB::named(rltk::WHITE),
-            RGB::named(rltk::BLACK),
-            rltk::to_cp437('─'),
-        )
-    }
     ctx.draw_box(
         SIDE_X,
         SIDE_Y + SIDE_H + 1,
@@ -217,18 +208,27 @@ pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
     );
     ctx.set(
         10,
-        CONSOLE_HEIGHT - 1,
+        CONSOLE_HEIGHT - 2,
         RGB::named(rltk::WHITE),
         RGB::named(rltk::BLACK),
         rltk::to_cp437('┴'),
     );
     ctx.set(
         86,
-        CONSOLE_HEIGHT - 1,
+        CONSOLE_HEIGHT - 2,
         RGB::named(rltk::WHITE),
         RGB::named(rltk::BLACK),
         rltk::to_cp437('┴'),
     );
+    for xpos in 11..86 {
+        ctx.set(
+            xpos,
+            CONSOLE_HEIGHT - 2,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+            rltk::to_cp437('─'),
+        )
+    }
 
     ctx.print(
         2,
@@ -390,6 +390,83 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
 
     // ctx.print(74, 1, format!("{} fps", ctx.fps));
     // draw_tooltips(ecs, ctx);
+}
+
+pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
+    ctx.set_active_console(3);
+    ctx.cls();
+
+    let x = 0;
+    let y = CONSOLE_HEIGHT - 1;
+    let icon_color = RGB::named(rltk::GOLD);
+    let bg_color = RGB::named(rltk::BLACK);
+
+    // movement controls
+    let move_section_x = x;
+    ctx.set(move_section_x + 1, y, icon_color, bg_color, 27);
+    ctx.set(move_section_x + 2, y, icon_color, bg_color, 25);
+    ctx.set(move_section_x + 3, y, icon_color, bg_color, 24);
+    ctx.set(move_section_x + 4, y, icon_color, bg_color, 26);
+    ctx.print(move_section_x + 6, y, "move");
+
+    match *status {
+        RunState::AwaitingInput => {
+            let is_reaction = {
+                let can_act = ecs.read_storage::<super::CanActFlag>();
+                let player = ecs.fetch::<Entity>();
+                can_act
+                    .get(*player)
+                    .expect("uh-oh, we're waiting for input but the player can't act")
+                    .is_reaction
+            };
+
+            // examine
+            let view_section_x = 13;
+            ctx.print_color(view_section_x, y, icon_color, bg_color, "v");
+            ctx.print(view_section_x + 1, y, "iew map");
+
+            // space bar
+            let space_section_x = 25;
+            let space_action_str;
+            if is_reaction {
+                space_action_str = "brace";
+            } else {
+                space_action_str = "recover";
+            }
+
+            ctx.print_color(space_section_x, y, icon_color, bg_color, "[SPACE]");
+            ctx.print(space_section_x + 8, y, space_action_str);
+        
+            // card section
+            let card_section_x = 43;          
+            ctx.print_color(card_section_x, y, icon_color, bg_color, "[1-7]");
+            ctx.print(card_section_x + 6, y, "use card");
+        }
+        RunState::Targetting { .. } => {
+            // examine
+            let view_section_x = 13;
+            ctx.print_color(view_section_x, y, icon_color, bg_color, "v");
+            ctx.print(view_section_x + 1, y, "iew card");
+
+            // space bar
+            let space_section_x = 25;
+            ctx.print_color(space_section_x, y, icon_color, bg_color, "[SPACE]");
+            ctx.print(space_section_x + 8, y, "confirm");
+
+            // escape
+            let escape_section_x = 43;          
+            ctx.print_color(escape_section_x, y, icon_color, bg_color, "[ESC]");
+            ctx.print(escape_section_x + 6, y, "cancel");
+            
+            // tab target
+            let tab_section_x = 58;            
+            ctx.print_color(tab_section_x, y, icon_color, bg_color, "[TAB]");
+            ctx.print(tab_section_x + 6, y, "next target");
+        }
+        RunState::Running => {}
+    }
+
+    ctx.set_active_console(1);
 }
 
 // TODO
