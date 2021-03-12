@@ -74,12 +74,11 @@ pub struct DeathTrigger {
     pub range: crate::RangeType,
 }
 
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
 pub struct AttackIntent {
-    pub name: String,
-    pub damage: i32,
-    pub loc: rltk::Point,
-    pub range: crate::RangeType,
+    pub main: crate::AttackType,
+    pub modifier: Option<crate::AttackType>,
+    pub loc: Point,
 }
 
 #[derive(Component)]

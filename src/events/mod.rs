@@ -1,4 +1,4 @@
-use super::CardRequest;
+use super::{AttackIntent, CardRequest};
 use rltk::Point;
 use specs::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -15,6 +15,7 @@ lazy_static! {
 }
 
 struct Event {
+    attack_intent: Option<AttackIntent>,
     resolver: Box<dyn event_type::EventResolver + Send>,
     name: Option<String>,
     source: Option<Entity>,
@@ -25,10 +26,32 @@ struct Event {
 pub fn add_event(event_type: &EventType, range: &RangeType, loc: Point, invokes_reaction: bool) {
     let mut stack = STACK.lock().expect("Failed to lock STACK");
     let event = Event {
+        attack_intent: None,
         resolver: event_type::get_resolver(event_type),
         name: event_type::get_name(event_type),
         source: None,
         target_tiles: Arc::new(range_type::resolve_range_at(range, loc)),
+        invokes_reaction,
+    };
+
+    stack.push(event);
+}
+
+pub fn add_damage_event(intent: &AttackIntent, invokes_reaction: bool) {
+    let mut stack = STACK.lock().expect("Failed to lock STACK");
+
+    let damage_event = EventType::Damage {
+        source_name: crate::move_type::get_intent_combined_name(intent),
+        amount: crate::move_type::get_intent_combined_damage(intent),
+    };
+    let range = &crate::move_type::get_attack_shape(&intent.main);
+
+    let event = Event {
+        attack_intent: Some(*intent),
+        resolver: event_type::get_resolver(&damage_event),
+        name: Some(crate::move_type::get_intent_combined_name(intent)),
+        source: None,
+        target_tiles: Arc::new(range_type::resolve_range_at(range, intent.loc)),
         invokes_reaction,
     };
 
@@ -113,9 +136,26 @@ fn process_event(ecs: &mut World, event: Event) {
         builder.make_card(top_card, active_count);
     }
 
-    event
-        .resolver
-        .resolve(ecs, event.source, event.target_tiles.to_vec());
+    // TODO: no clue if this can be simplified
+    let stack_event = {
+        // this lock needs to be limited in scope, since the resolver may want access to the stack via add_event
+        let mut stack = STACK.lock().expect("Failed to lock STACK");
+        stack.pop()
+    };
+
+    match stack_event {
+        None => event
+            .resolver
+            .resolve(ecs, event.source, event.target_tiles.to_vec()),
+        Some(stack_event) => match stack_event.attack_intent {
+            None => event
+                .resolver
+                .resolve(ecs, event.source, event.target_tiles.to_vec()),
+            Some(intent) => {
+                println!("contested attack!");
+            }
+        },
+    }
 }
 
 fn add_card_to_stack(

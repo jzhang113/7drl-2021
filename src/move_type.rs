@@ -23,27 +23,33 @@ pub fn get_attack_intent(
     loc: Point,
     attack_modifier: Option<AttackType>,
 ) -> AttackIntent {
-    let name = get_attack_name(attack_type);
-    let range = get_attack_shape(attack_type);
-    let damage = get_attack_power(attack_type);
+    AttackIntent {
+        main: *attack_type,
+        modifier: attack_modifier,
+        loc,
+    }
+}
 
-    match attack_modifier {
-        None => AttackIntent {
-            name,
-            damage,
-            loc,
-            range,
-        },
+pub fn get_intent_combined_damage(intent: &AttackIntent) -> i32 {
+    let damage = get_attack_power(&intent.main);
+
+    match intent.modifier {
+        None => damage,
+        Some(modifier) => {
+            let modifier_damage = get_attack_power(&modifier);
+            damage + modifier_damage
+        }
+    }
+}
+
+pub fn get_intent_combined_name(intent: &AttackIntent) -> String {
+    let name = get_attack_name(&intent.main);
+
+    match intent.modifier {
+        None => name,
         Some(modifier) => {
             let modifier_name = get_attack_name(&modifier);
-            let modifier_damage = get_attack_power(&modifier);
-
-            AttackIntent {
-                name: format!("{} {}", modifier_name, name),
-                damage: damage + modifier_damage,
-                loc,
-                range,
-            }
+            format!("{} {}", modifier_name, name)
         }
     }
 }

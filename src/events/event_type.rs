@@ -2,6 +2,7 @@ use crate::ParticleRequest;
 use rltk::Point;
 use specs::prelude::*;
 
+#[derive(PartialEq)]
 pub enum EventType {
     Damage { source_name: String, amount: i32 },
     ParticleSpawn { request: ParticleRequest },

@@ -33,7 +33,7 @@ fn update_lifetimes(ecs: &mut World, ctx: &Rltk) -> Vec<Entity> {
     dead_particles
 }
 
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Copy, Clone)]
 pub struct ParticleRequest {
     pub position: Point,
     pub color: RGB,

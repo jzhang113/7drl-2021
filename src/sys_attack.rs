@@ -9,16 +9,8 @@ impl<'a> System<'a> for AttackSystem {
     fn run(&mut self, data: Self::SystemData) {
         let (entities, mut attacks) = data;
 
-        for (_, attack) in (&entities, &attacks).join() {
-            crate::add_event(
-                &crate::EventType::Damage {
-                    source_name: attack.name.clone(),
-                    amount: attack.damage,
-                },
-                &attack.range,
-                attack.loc,
-                true,
-            )
+        for (_, intent) in (&entities, &attacks).join() {
+            crate::add_damage_event(intent, true);
         }
 
         attacks.clear();
