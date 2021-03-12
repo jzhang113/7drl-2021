@@ -90,3 +90,10 @@ pub struct MoveIntent {
 pub struct Moveset {
     pub moves: Vec<crate::AttackType>,
 }
+
+#[derive(Component)]
+pub struct Viewable {
+    pub name: String,
+    pub symbol: rltk::FontCharType,
+    pub list_index: Option<u32>,
+}

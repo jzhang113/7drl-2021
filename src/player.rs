@@ -1,4 +1,4 @@
-use super::{Map, MoveIntent, Player, Position, RunState, State, Viewshed};
+use super::{Map, MoveIntent, Player, Position, RunState, State, Viewable, Viewshed};
 use rltk::{Algorithm2D, Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 
@@ -191,11 +191,15 @@ fn handle_keys(gs: &mut State, ctx: &mut Rltk, is_reaction: bool) -> RunState {
                     return try_move_player(&mut gs.ecs, 0, 1);
                 }
             }
+            VirtualKeyCode::V => RunState::ViewEnemy { index: 0 },
             VirtualKeyCode::Space => RunState::Running,
             VirtualKeyCode::Key1 => select_card(gs, 0),
             VirtualKeyCode::Key2 => select_card(gs, 1),
             VirtualKeyCode::Key3 => select_card(gs, 2),
             VirtualKeyCode::Key4 => select_card(gs, 3),
+            VirtualKeyCode::Key5 => select_card(gs, 4),
+            VirtualKeyCode::Key6 => select_card(gs, 5),
+            VirtualKeyCode::Key7 => select_card(gs, 6),
             _ => RunState::AwaitingInput,
         },
     }
@@ -295,9 +299,51 @@ pub fn ranged_target(
             VirtualKeyCode::Down | VirtualKeyCode::Numpad2 | VirtualKeyCode::J => {
                 gs.cursor.y += 1;
             }
+            // TODO: placeholder
+            VirtualKeyCode::V => return (SelectionResult::Canceled, None),
             _ => {}
         },
     };
 
     (SelectionResult::NoResponse, None)
+}
+
+pub fn view_input(gs: &mut State, ctx: &mut Rltk, index: u32) -> RunState {
+    let entities = gs.ecs.entities();
+    let viewables = gs.ecs.read_storage::<Viewable>();
+
+    let mut new_index = index;
+    let mut max_index = 0;
+
+    for (ent, view) in (&entities, &viewables).join() {
+        if let Some(list_index) = view.list_index {
+            max_index = std::cmp::max(list_index, max_index);
+
+            if list_index == index {
+                crate::gui::draw_viewable_info(&gs.ecs, ctx, &ent, index);
+            }
+        }
+    }
+
+    match ctx.key {
+        None => {}
+        Some(key) => match key {
+            VirtualKeyCode::Escape => return RunState::AwaitingInput,
+            VirtualKeyCode::Up | VirtualKeyCode::Numpad8 | VirtualKeyCode::K => {
+                if new_index > 0 {
+                    new_index -= 1;
+                } else {
+                    new_index += max_index;
+                }
+            }
+            VirtualKeyCode::Down | VirtualKeyCode::Numpad2 | VirtualKeyCode::J => {
+                new_index += 1;
+            }
+            _ => {}
+        },
+    }
+
+    RunState::ViewEnemy {
+        index: new_index % (max_index + 1),
+    }
 }

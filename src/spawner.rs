@@ -60,6 +60,11 @@ pub fn build_player(ecs: &mut World, point: Point) -> Entity {
             fg: RGB::named(rltk::YELLOW),
             bg: RGB::named(rltk::BLACK),
         })
+        .with(Viewable {
+            name: "Player".to_string(),
+            symbol: rltk::to_cp437('@'),
+            list_index: None,
+        })
         .with(Player)
         .with(Schedulable {
             current: 0,
@@ -93,6 +98,11 @@ pub fn build_mook(ecs: &mut World, point: Point) -> Entity {
             fg: RGB::named(rltk::LIGHT_BLUE),
             bg: RGB::named(rltk::BLACK),
         })
+        .with(Viewable {
+            name: "Mook".to_string(),
+            symbol: rltk::to_cp437('x'),
+            list_index: None,
+        })
         .with(Schedulable {
             current: 0,
             base: 24,
@@ -123,6 +133,11 @@ pub fn build_barrel(ecs: &mut World, point: Point) -> Entity {
             symbol: rltk::to_cp437('#'),
             fg: RGB::named(rltk::YELLOW),
             bg: RGB::named(rltk::BLACK),
+        })
+        .with(Viewable {
+            name: "Barrel".to_string(),
+            symbol: rltk::to_cp437('#'),
+            list_index: None,
         })
         .with(BlocksTile)
         .with(Health { current: 2, max: 2 })

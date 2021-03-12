@@ -35,6 +35,8 @@ pub use sys_particle::{CardRequest, ParticleBuilder, ParticleRequest};
 pub enum RunState {
     AwaitingInput,
     Targetting { attack_type: AttackType },
+    ViewEnemy { index: u32 },
+    ViewCard,
     Running,
 }
 
@@ -157,6 +159,14 @@ impl GameState for State {
                     }
                 }
             }
+            RunState::ViewEnemy { index } => {
+                gui::update_controls_text(&self.ecs, ctx, &next_status);
+                next_status = player::view_input(self, ctx, index);
+            }
+            RunState::ViewCard => {
+                gui::update_controls_text(&self.ecs, ctx, &next_status);
+                next_status = player::view_input(self, ctx, 0);
+            }
             RunState::Running => {
                 // uncomment while loop to skip rendering intermediate states
                 while next_status == RunState::Running {
@@ -181,9 +191,9 @@ fn main() -> rltk::BError {
         .with_title("Roguelike Tutorial")
         .with_font("Zilk-16x16.png", 16, 16)
         .with_font("custom_icons.png", 16, 16)
-        .with_simple_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png")   // main layer
+        .with_simple_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png") // main layer
         .with_sparse_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "custom_icons.png") // custom icons
-        .with_sparse_console(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png")         // control line
+        .with_sparse_console(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png") // control line
         .build()
         .expect("Failed to build console");
 
@@ -205,6 +215,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<ParticleLifetime>();
     gs.ecs.register::<CardLifetime>();
     gs.ecs.register::<BlocksTile>();
+    gs.ecs.register::<Viewable>();
 
     gs.ecs.register::<Health>();
     gs.ecs.register::<DeathTrigger>();

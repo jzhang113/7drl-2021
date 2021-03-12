@@ -1,4 +1,4 @@
-use super::{Map, Player, Position, Viewshed};
+use super::{Map, Player, Position, Viewable, Viewshed};
 use rltk::{Algorithm2D, Point};
 use specs::prelude::*;
 
@@ -9,14 +9,15 @@ impl<'a> System<'a> for VisibilitySystem {
         WriteExpect<'a, Map>,
         Entities<'a>,
         WriteStorage<'a, Viewshed>,
+        WriteStorage<'a, Viewable>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, Player>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut map, entities, mut viewshed, pos, player) = data;
+        let (mut map, entities, mut viewsheds, mut viewables, pos, player) = data;
 
-        for (ent, viewshed, pos) in (&entities, &mut viewshed, &pos).join() {
+        for (ent, viewshed, pos) in (&entities, &mut viewsheds, &pos).join() {
             if !viewshed.dirty {
                 continue;
             }
@@ -42,6 +43,11 @@ impl<'a> System<'a> for VisibilitySystem {
                     }
                 }
             }
+        }
+
+        // TODO: we can probably set up the list index here instead of in gui
+        for mut view in (&mut viewables).join() {
+            view.list_index = None;
         }
     }
 }

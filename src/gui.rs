@@ -317,7 +317,7 @@ fn pluralize(root: String, count: i32) -> String {
 
 pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
     let healths = ecs.read_storage::<Health>();
-    let renderables = ecs.read_storage::<Renderable>();
+    let mut viewables = ecs.write_storage::<Viewable>();
     let viewsheds = ecs.read_storage::<Viewshed>();
     let positions = ecs.read_storage::<Position>();
 
@@ -338,8 +338,9 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
 
     let x = SIDE_X + 1;
     let mut y = SIDE_Y + 2;
+    let mut index = 0;
 
-    for (rend, pos, health) in (&renderables, &positions, &healths).join() {
+    for (mut view, pos, health) in (&mut viewables, &positions, &healths).join() {
         if !player_view
             .visible
             .iter()
@@ -348,7 +349,8 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
             continue;
         }
 
-        ctx.print(x, y, format!("{}:", rend.symbol as u8 as char));
+        ctx.print(x, y, format!("{}:", view.symbol as u8 as char));
+        view.list_index = Some(index);
         let curr_hp = std::cmp::max(0, health.current);
 
         for i in 0..curr_hp {
@@ -372,6 +374,7 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
         }
 
         y += 2;
+        index += 1;
     }
 
     // ctx.draw_box(
@@ -436,9 +439,9 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
 
             ctx.print_color(space_section_x, y, icon_color, bg_color, "[SPACE]");
             ctx.print(space_section_x + 8, y, space_action_str);
-        
+
             // card section
-            let card_section_x = 43;          
+            let card_section_x = 43;
             ctx.print_color(card_section_x, y, icon_color, bg_color, "[1-7]");
             ctx.print(card_section_x + 6, y, "use card");
         }
@@ -454,19 +457,94 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
             ctx.print(space_section_x + 8, y, "confirm");
 
             // escape
-            let escape_section_x = 43;          
+            let escape_section_x = 43;
             ctx.print_color(escape_section_x, y, icon_color, bg_color, "[ESC]");
             ctx.print(escape_section_x + 6, y, "cancel");
-            
+
             // tab target
-            let tab_section_x = 58;            
+            let tab_section_x = 58;
             ctx.print_color(tab_section_x, y, icon_color, bg_color, "[TAB]");
             ctx.print(tab_section_x + 6, y, "next target");
         }
-        RunState::Running => {}
+        RunState::ViewEnemy { .. } => {
+            // escape
+            let escape_section_x = 13;
+            ctx.print_color(escape_section_x, y, icon_color, bg_color, "[ESC]");
+            ctx.print(escape_section_x + 6, y, "cancel");
+        }
+        _ => {}
     }
 
     ctx.set_active_console(1);
+}
+
+pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u32) {
+    let selected_color = RGB::named(rltk::GOLD);
+    let bg_color = RGB::named(rltk::BLACK);
+
+    ctx.set(
+        0,
+        2 * index + 2,
+        RGB::named(rltk::GOLD),
+        bg_color,
+        rltk::to_cp437('>'),
+    );
+
+    let positions = ecs.read_storage::<Position>();
+    let viewables = ecs.read_storage::<Viewable>();
+    let healths = ecs.read_storage::<Health>();
+
+    let pos = positions
+        .get(*entity)
+        .expect("viewable didn't have a position");
+    let view = viewables.get(*entity).expect("viewable didn't have a view");
+    let health = healths.get(*entity).expect("viewable didn't have health");
+
+    let x = MAP_X + pos.x;
+    let y = MAP_Y + pos.y;
+
+    ctx.set_active_console(0);
+    ctx.set(x, y, selected_color, bg_color, rltk::to_cp437('█'));
+    ctx.set_active_console(1);
+
+    let (box_x, box_y) = position_box(ctx, x, y, 10, 10, selected_color, bg_color);
+
+    ctx.print(box_x + 1, box_y, view.name.clone());
+    ctx.print(
+        box_x + 1,
+        box_y + 1,
+        format!("HP: {}/{}", health.current, health.max),
+    );
+}
+
+// draw a box stemming from a given point
+// returns the top left of the new box
+fn position_box(ctx: &mut Rltk, x: i32, y: i32, w: i32, h: i32, fg: RGB, bg: RGB) -> (i32, i32) {
+    let right = x + w < CONSOLE_WIDTH;
+    let down = y + h < MAP_H;
+
+    // boxes prefer to be right and down if several positions are possible
+    if right {
+        if down {
+            ctx.draw_box(x + 1, y, w, h, fg, bg);
+            ctx.set(x + 1, y, fg, bg, rltk::to_cp437('┬'));
+            return (x + 1, y);
+        } else {
+            ctx.draw_box(x + 1, y - h, w, h, fg, bg);
+            ctx.set(x + 1, y, fg, bg, rltk::to_cp437('┴'));
+            return (x + 1, y - h);
+        }
+    } else {
+        if down {
+            ctx.draw_box(x - w - 1, y, w, h, fg, bg);
+            ctx.set(x - 1, y, fg, bg, rltk::to_cp437('┬'));
+            return (x - w - 1, y);
+        } else {
+            ctx.draw_box(x - w - 1, y - h, w, h, fg, bg);
+            ctx.set(x - 1, y, fg, bg, rltk::to_cp437('┴'));
+            return (x - w - 1, y - h);
+        }
+    }
 }
 
 // TODO
