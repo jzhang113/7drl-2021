@@ -113,13 +113,20 @@ pub fn process_stack(ecs: &mut World) -> crate::RunState {
                         let mut scheds = ecs.write_storage::<super::Schedulable>();
 
                         for entity in entities_hit {
+                            // if this entity is going to act, refund their time cost
                             if can_act.get(entity).is_some() {
                                 let mut sched = scheds.get_mut(entity).unwrap();
                                 sched.current -= sched.base;
                             }
 
                             can_act
-                                .insert(entity, super::CanActFlag { is_reaction: true })
+                                .insert(
+                                    entity,
+                                    super::CanActFlag {
+                                        is_reaction: true,
+                                        reaction_target: event.source,
+                                    },
+                                )
                                 .expect("Failed to insert CanActFlag");
                         }
 

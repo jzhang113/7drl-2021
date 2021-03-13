@@ -95,15 +95,16 @@ impl GameState for State {
         gui::draw_hand(&self.ecs, ctx);
 
         let mut next_status;
+        let player_point;
 
         // wrapping to limit borrowed lifetimes
         {
-            // let player = self.ecs.fetch::<Entity>();
-            // let can_act = self.ecs.read_storage::<CanActFlag>();
-            // match can_act.get(*player) {
-            //     None => ctx.print(30, 1, format!("OPPONENT TURN {}", self.tick)),
-            //     Some(_) => ctx.print(30, 1, format!("YOUR TURN {}", self.tick)),
-            // }
+            let player = self.ecs.fetch::<Entity>();
+            let positions = self.ecs.read_storage::<Position>();
+            let player_pos = positions
+                .get(*player)
+                .expect("player didn't have a position");
+            player_point = rltk::Point::new(player_pos.x, player_pos.y);
 
             // get the current RunState
             next_status = *self.ecs.fetch::<RunState>();
@@ -116,12 +117,10 @@ impl GameState for State {
             }
             RunState::Targetting { attack_type } => {
                 gui::update_controls_text(&self.ecs, ctx, &next_status);
-                let mut range = get_attack_range(&attack_type);
-                if let Some(modifier) = self.attack_modifier {
-                    range += crate::move_type::get_attack_range(&modifier);
-                }
+                let range_type = crate::move_type::get_attack_range(&attack_type);
+                let tiles_in_range = crate::range_type::resolve_range_at(&range_type, player_point);
 
-                let result = player::ranged_target(self, ctx, range);
+                let result = player::ranged_target(self, ctx, tiles_in_range);
                 match result.0 {
                     player::SelectionResult::Canceled => {
                         let mut deck = self.ecs.fetch_mut::<deck::Deck>();

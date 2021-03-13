@@ -30,7 +30,13 @@ impl<'a> System<'a> for TurnSystem {
 
             sched.current += sched.base;
             can_act
-                .insert(ent, CanActFlag { is_reaction: false })
+                .insert(
+                    ent,
+                    CanActFlag {
+                        is_reaction: false,
+                        reaction_target: None,
+                    },
+                )
                 .expect("Failed to insert CanActFlag");
         }
     }

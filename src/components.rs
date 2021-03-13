@@ -34,6 +34,7 @@ pub struct Viewshed {
 #[derive(Component)]
 pub struct CanActFlag {
     pub is_reaction: bool,
+    pub reaction_target: Option<Entity>,
 }
 
 #[derive(Component)]

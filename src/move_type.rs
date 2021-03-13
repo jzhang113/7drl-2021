@@ -9,12 +9,24 @@ pub enum AttackType {
 }
 
 // check if an attack is can be executed
-// this checks for attack ranges as well as any extra conditions
-pub fn is_attack_valid(attack_type: &AttackType, point1: Point, point2: Point) -> bool {
-    let distance = rltk::DistanceAlg::Manhattan.distance2d(point1, point2);
-    let max_range = get_attack_range(attack_type) as f32;
+// this returns the tile that will hit the target
+pub fn is_attack_valid(
+    attack_type: &AttackType,
+    from_point: Point,
+    target: Point,
+) -> Option<Point> {
+    let range_type = get_attack_range(attack_type);
+    let shape = get_attack_shape(attack_type);
 
-    distance <= max_range
+    for tile in crate::range_type::resolve_range_at(&range_type, from_point) {
+        let affected_tiles = crate::range_type::resolve_range_at(&shape, tile);
+
+        if affected_tiles.contains(&target) {
+            return Some(tile);
+        }
+    }
+
+    None
 }
 
 // convert an attack into an intent that can be executed by the event system
@@ -62,11 +74,11 @@ pub fn get_intent_guard(intent: &AttackIntent) -> i32 {
     get_intent_stat(intent, get_attack_guard, |x, y| x + y)
 }
 
-pub fn get_attack_range(attack_type: &AttackType) -> i32 {
+pub fn get_attack_range(attack_type: &AttackType) -> RangeType {
     match attack_type {
-        AttackType::Sweep => 1,
-        AttackType::Punch => 1,
-        AttackType::Super => 2,
+        AttackType::Sweep => RangeType::Single,
+        AttackType::Punch => RangeType::Square { size: 1 },
+        AttackType::Super => RangeType::Empty,
     }
 }
 

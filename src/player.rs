@@ -38,8 +38,19 @@ fn try_move_player(ecs: &mut World, dx: i32, dy: i32) -> RunState {
     RunState::AwaitingInput
 }
 
-fn select_card(gs: &mut State, index: usize) -> RunState {
+fn select_card(
+    gs: &mut State,
+    index: usize,
+    is_reaction: bool,
+    reaction_target: Option<Entity>,
+) -> RunState {
     let mut deck = gs.ecs.fetch_mut::<crate::deck::Deck>();
+    let positions = gs.ecs.read_storage::<Position>();
+    let player = gs.ecs.fetch::<Entity>();
+    let player_pos = positions
+        .get(*player)
+        .expect("player didn't have a position");
+    let player_point = Point::new(player_pos.x, player_pos.y);
 
     // don't process the input if the selection doesn't exist
     if deck.hand.len() <= index {
@@ -49,64 +60,94 @@ fn select_card(gs: &mut State, index: usize) -> RunState {
     deck.selected = index as i32;
     let attack_type = deck.hand[index];
 
-    let shape = crate::move_type::get_attack_shape(&attack_type);
-    let mut range = crate::move_type::get_attack_range(&attack_type);
-    if let Some(modifier) = gs.attack_modifier {
-        range += crate::move_type::get_attack_range(&modifier);
-    }
+    // if we are counter attacking, only allow moves that can hit
+    // unselect the card if we end up quitting
+    if is_reaction {
+        match reaction_target {
+            None => {
+                deck.selected = -1;
+                return RunState::AwaitingInput;
+            }
+            Some(target) => {
+                if let Some(target_pos) = positions.get(target) {
+                    let target_point = Point::new(target_pos.x, target_pos.y);
 
-    // empty-shaped moves are not targetted
-    if shape == crate::RangeType::Empty {
-        // TODO: should this skip targetting
-    }
-
-    // update targetting specific state
-    let players = gs.ecs.read_storage::<Player>();
-    let positions = gs.ecs.read_storage::<Position>();
-    let viewsheds = gs.ecs.read_storage::<Viewshed>();
-    let map = gs.ecs.fetch::<Map>();
-
-    for (_player, pos, viewshed) in (&players, &positions, &viewsheds).join() {
-        let mut tab_targets = Vec::new();
-
-        // We can target visible tiles in range
-        for idx in viewshed.visible.iter() {
-            let distance = rltk::DistanceAlg::Manhattan.distance2d(Point::new(pos.x, pos.y), *idx);
-            if distance <= range as f32 {
-                let index = map.point2d_to_index(*idx);
-
-                if map.blocked_tiles[index] && map.tiles[index] != crate::TileType::Wall {
-                    tab_targets.push(*idx);
+                    match crate::move_type::is_attack_valid(
+                        &attack_type,
+                        player_point,
+                        target_point,
+                    ) {
+                        None => {
+                            deck.selected = -1;
+                            return RunState::AwaitingInput;
+                        }
+                        Some(point) => {
+                            // TODO: other points in range are still valid, but maybe they shouldn't be
+                            gs.cursor = point;
+                            gs.tab_index = 0;
+                        }
+                    }
                 }
             }
         }
+    } else {
+        let shape = crate::move_type::get_attack_shape(&attack_type);
+        let range_type = crate::move_type::get_attack_range(&attack_type);
+        let tiles_in_range = crate::range_type::resolve_range_at(&range_type, player_point);
 
-        let init_point;
-        if tab_targets.len() > 0 {
-            init_point = tab_targets[0];
-        } else {
-            init_point = Point::new(pos.x, pos.y);
+        // empty-shaped moves are not targetted
+        if shape == crate::RangeType::Empty {
+            // TODO: should this skip targetting
         }
 
-        gs.cursor = init_point;
-        gs.tab_targets = tab_targets;
-        gs.tab_index = 0;
+        // update targetting specific state
+        let players = gs.ecs.read_storage::<Player>();
+        let positions = gs.ecs.read_storage::<Position>();
+        let viewsheds = gs.ecs.read_storage::<Viewshed>();
+        let map = gs.ecs.fetch::<Map>();
+
+        for (_player, pos, viewshed) in (&players, &positions, &viewsheds).join() {
+            let mut tab_targets = Vec::new();
+
+            // We can target visible tiles in range
+            for idx in viewshed.visible.iter() {
+                if tiles_in_range.contains(idx) {
+                    let index = map.point2d_to_index(*idx);
+
+                    if map.blocked_tiles[index] && map.tiles[index] != crate::TileType::Wall {
+                        tab_targets.push(*idx);
+                    }
+                }
+            }
+
+            let init_point;
+            if tab_targets.len() > 0 {
+                init_point = tab_targets[0];
+            } else {
+                init_point = Point::new(pos.x, pos.y);
+            }
+
+            gs.cursor = init_point;
+            gs.tab_targets = tab_targets;
+            gs.tab_index = 0;
+        }
     }
 
-    return RunState::Targetting { attack_type };
+    RunState::Targetting { attack_type }
 }
 
 pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
-    let is_reaction = {
+    let (is_reaction, target) = {
         let can_act = gs.ecs.read_storage::<super::CanActFlag>();
         let player = gs.ecs.fetch::<Entity>();
-        can_act
+        let player_can_act = can_act
             .get(*player)
-            .expect("player_input called, but it is not your turn")
-            .is_reaction
+            .expect("player_input called, but it is not your turn");
+
+        (player_can_act.is_reaction, player_can_act.reaction_target)
     };
 
-    let result = handle_keys(gs, ctx, is_reaction);
+    let result = handle_keys(gs, ctx, is_reaction, target);
 
     if result == RunState::Running {
         update_hand(&mut gs.ecs);
@@ -159,7 +200,12 @@ fn clear_lingering_cards(ecs: &mut World) {
     cards.clear();
 }
 
-fn handle_keys(gs: &mut State, ctx: &mut Rltk, is_reaction: bool) -> RunState {
+fn handle_keys(
+    gs: &mut State,
+    ctx: &mut Rltk,
+    is_reaction: bool,
+    reaction_target: Option<Entity>,
+) -> RunState {
     match ctx.key {
         None => RunState::AwaitingInput,
         Some(key) => match key {
@@ -193,13 +239,13 @@ fn handle_keys(gs: &mut State, ctx: &mut Rltk, is_reaction: bool) -> RunState {
             }
             VirtualKeyCode::V => RunState::ViewEnemy { index: 0 },
             VirtualKeyCode::Space => RunState::Running,
-            VirtualKeyCode::Key1 => select_card(gs, 0),
-            VirtualKeyCode::Key2 => select_card(gs, 1),
-            VirtualKeyCode::Key3 => select_card(gs, 2),
-            VirtualKeyCode::Key4 => select_card(gs, 3),
-            VirtualKeyCode::Key5 => select_card(gs, 4),
-            VirtualKeyCode::Key6 => select_card(gs, 5),
-            VirtualKeyCode::Key7 => select_card(gs, 6),
+            VirtualKeyCode::Key1 => select_card(gs, 0, is_reaction, reaction_target),
+            VirtualKeyCode::Key2 => select_card(gs, 1, is_reaction, reaction_target),
+            VirtualKeyCode::Key3 => select_card(gs, 2, is_reaction, reaction_target),
+            VirtualKeyCode::Key4 => select_card(gs, 3, is_reaction, reaction_target),
+            VirtualKeyCode::Key5 => select_card(gs, 4, is_reaction, reaction_target),
+            VirtualKeyCode::Key6 => select_card(gs, 5, is_reaction, reaction_target),
+            VirtualKeyCode::Key7 => select_card(gs, 6, is_reaction, reaction_target),
             _ => RunState::AwaitingInput,
         },
     }
@@ -214,10 +260,9 @@ pub enum SelectionResult {
 pub fn ranged_target(
     gs: &mut State,
     ctx: &mut Rltk,
-    range: i32,
+    tiles_in_range: Vec<Point>,
 ) -> (SelectionResult, Option<Point>) {
     let players = gs.ecs.read_storage::<Player>();
-    let positions = gs.ecs.read_storage::<Position>();
     let viewsheds = gs.ecs.read_storage::<Viewshed>();
 
     ctx.print_color(
@@ -232,11 +277,10 @@ pub fn ranged_target(
 
     // Highlight available target cells
     let mut available_cells = Vec::new();
-    for (_player, pos, viewshed) in (&players, &positions, &viewsheds).join() {
+    for (_player, viewshed) in (&players, &viewsheds).join() {
         // We have a viewshed
         for idx in viewshed.visible.iter() {
-            let distance = rltk::DistanceAlg::Manhattan.distance2d(Point::new(pos.x, pos.y), *idx);
-            if distance <= range as f32 {
+            if tiles_in_range.contains(idx) {
                 ctx.set_bg(
                     crate::gui::MAP_X + idx.x,
                     crate::gui::MAP_Y + idx.y,

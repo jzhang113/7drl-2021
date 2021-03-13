@@ -51,6 +51,7 @@ impl<'a> System<'a> for AiSystem {
 
                 for potential_attack in moveset.moves.iter() {
                     if crate::move_type::is_attack_valid(potential_attack, orig_point, player_point)
+                        .is_some()
                     {
                         attack = Some(potential_attack);
                         break;
