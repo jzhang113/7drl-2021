@@ -10,7 +10,7 @@ pub mod range_type;
 pub use event_type::EventType;
 pub use range_type::*;
 
-const ATK_SPD_BONUS: i32 = 1;
+const ATK_SPD_BONUS: i32 = 0;
 const DEF_GUARD_BONUS: i32 = 1;
 
 const SPEED_ROLL_RANGE: i32 = 6;
@@ -230,38 +230,47 @@ fn process_event(ecs: &mut World, event: Event) {
                             .resolve(ecs, event.source, event.target_tiles.to_vec())
                     }
                     Some(stack_intent) => {
-                        let (atk_speed_roll, def_speed_roll, def_guard_roll, atk_power_roll) = {
+                        let (atk_speed, def_speed, def_guard_roll, atk_power_roll) = {
                             let mut rng = ecs.fetch_mut::<rltk::RandomNumberGenerator>();
-                            let s1 = rng.range(0, SPEED_ROLL_RANGE);
-                            let s2 = rng.range(0, SPEED_ROLL_RANGE);
+                            let atk_speed_roll = rng.range(0, SPEED_ROLL_RANGE);
+                            let def_speed_roll = rng.range(0, SPEED_ROLL_RANGE);
                             let s3 = rng.range(0, GUARD_ROLL_RANGE);
                             let s4 = rng.range(0, GUARD_ROLL_RANGE);
-                            (s1, s2, s3, s4)
-                        };
 
-                        {
+                            // compare speed to determine which attack resolves first
+                            let atk_speed = move_type::get_intent_speed(&event_intent)
+                                + atk_speed_roll
+                                + ATK_SPD_BONUS;
+                            let def_speed =
+                                move_type::get_intent_speed(&stack_intent) + def_speed_roll;
+
                             let mut intents = ecs.fetch_mut::<crate::IntentData>();
                             intents.hidden = false;
-                        }
+                            intents.rolls = (
+                                atk_speed_roll,
+                                def_speed_roll,
+                                s3,
+                                s4,
+                                atk_speed >= def_speed,
+                            );
 
-                        // compare speed to determine which attack resolves first
-                        let atk_speed = move_type::get_intent_speed(&event_intent)
-                            + atk_speed_roll
-                            + ATK_SPD_BONUS;
-                        let def_speed = move_type::get_intent_speed(&stack_intent) + def_speed_roll;
+                            (atk_speed, def_speed, s3, s4)
+                        };
 
                         let atk;
                         let atk_event;
                         let def;
                         let def_event;
                         let def_bonus_active;
+                        let stun_amount;
 
-                        if atk_speed > def_speed {
+                        if atk_speed >= def_speed {
                             atk = event_intent;
                             atk_event = event;
                             def = stack_intent;
                             def_event = stack_event;
                             def_bonus_active = true;
+                            stun_amount = atk_speed - def_speed;
                             println!("attacker wins the speed roll");
                         } else {
                             atk = stack_intent;
@@ -269,6 +278,7 @@ fn process_event(ecs: &mut World, event: Event) {
                             def = event_intent;
                             def_event = event;
                             def_bonus_active = false;
+                            stun_amount = def_speed - atk_speed;
                             println!("defender wins the speed roll");
                         }
 
@@ -284,9 +294,9 @@ fn process_event(ecs: &mut World, event: Event) {
                         if def_bonus_active {
                             def_guard += DEF_GUARD_BONUS;
                         }
-                        let atk_power = move_type::get_intent_power(&atk) + atk_power_roll;
+                        let stun_power = stun_amount + atk_power_roll;
 
-                        if atk_power > def_guard {
+                        if stun_power > def_guard {
                             println!("defender is stunned!");
                             return;
                         }

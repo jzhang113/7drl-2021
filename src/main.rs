@@ -58,6 +58,7 @@ pub struct IntentData {
     pub hidden: bool,
     pub prev_incoming_intent: Option<AttackIntent>,
     pub prev_outgoing_intent: Option<AttackIntent>,
+    pub rolls: (i32, i32, i32, i32, bool),
 }
 
 impl State {
@@ -274,12 +275,12 @@ fn main() -> rltk::BError {
     let deck = deck::Deck::new(vec![
         AttackType::Super,
         AttackType::Super,
-        AttackType::Punch,
+        AttackType::Quick,
         AttackType::Punch,
         AttackType::Punch,
         AttackType::Punch,
         AttackType::Sweep,
-        AttackType::Sweep,
+        AttackType::Stun,
     ]);
     gs.ecs.insert(deck);
 
@@ -290,6 +291,7 @@ fn main() -> rltk::BError {
         hidden: true,
         prev_incoming_intent: None,
         prev_outgoing_intent: None,
+        rolls: (0, 0, 0, 0, false),
     };
     gs.ecs.insert(data);
 

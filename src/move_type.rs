@@ -6,6 +6,8 @@ pub enum AttackType {
     Sweep,
     Punch,
     Super,
+    Stun,
+    Quick,
 }
 
 // check if an attack is can be executed
@@ -79,6 +81,8 @@ pub fn get_attack_range(attack_type: &AttackType) -> RangeType {
         AttackType::Sweep => RangeType::Single,
         AttackType::Punch => RangeType::Square { size: 1 },
         AttackType::Super => RangeType::Empty,
+        AttackType::Stun => RangeType::Square { size: 1 },
+        AttackType::Quick => RangeType::Empty,
     }
 }
 
@@ -87,6 +91,8 @@ pub fn get_attack_power(attack_type: &AttackType) -> i32 {
         AttackType::Sweep => 1,
         AttackType::Punch => 1,
         AttackType::Super => 2,
+        AttackType::Stun => 0,
+        AttackType::Quick => -1,
     }
 }
 
@@ -95,6 +101,8 @@ pub fn get_attack_shape(attack_type: &AttackType) -> RangeType {
         AttackType::Sweep => RangeType::Square { size: 1 },
         AttackType::Punch => RangeType::Single,
         AttackType::Super => RangeType::Empty,
+        AttackType::Stun => RangeType::Single,
+        AttackType::Quick => RangeType::Empty,
     }
 }
 
@@ -103,6 +111,8 @@ pub fn get_attack_speed(attack_type: &AttackType) -> i32 {
         AttackType::Sweep => 0,
         AttackType::Punch => 1,
         AttackType::Super => -2,
+        AttackType::Stun => 2,
+        AttackType::Quick => 4,
     }
 }
 
@@ -110,7 +120,9 @@ pub fn get_attack_guard(attack_type: &AttackType) -> i32 {
     match attack_type {
         AttackType::Sweep => 0,
         AttackType::Punch => 0,
-        AttackType::Super => 0,
+        AttackType::Super => 1,
+        AttackType::Stun => 0,
+        AttackType::Quick => -2,
     }
 }
 
@@ -119,6 +131,8 @@ pub fn get_attack_name(attack_type: &AttackType) -> String {
         AttackType::Sweep => "sweep",
         AttackType::Punch => "punch",
         AttackType::Super => "super",
+        AttackType::Stun => "stun",
+        AttackType::Quick => "quick",
     };
 
     name.to_string()

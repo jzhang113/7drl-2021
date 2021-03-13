@@ -158,6 +158,14 @@ pub fn draw_intents(ecs: &World, ctx: &mut Rltk) {
             };
 
             draw_card(ctx, data, 3, 14, RGB::named(rltk::WHITE));
+
+            let x_start = 3;
+            let y_stats = 19;
+
+            let (power_str, speed_str, guard_str) = format_roll_bonuses(intents.rolls, true);
+            ctx.print(x_start + 3 - (power_str.len() as i32), y_stats, power_str);
+            ctx.print(x_start + 6 - (speed_str.len() as i32), y_stats, speed_str);
+            ctx.print(x_start + 9 - (guard_str.len() as i32), y_stats, guard_str);
         }
     }
 
@@ -171,6 +179,48 @@ pub fn draw_intents(ecs: &World, ctx: &mut Rltk) {
         };
 
         draw_card(ctx, data, 3, 33, RGB::named(rltk::WHITE));
+        let x_start = 3;
+        let y_stats = 38;
+
+        let (power_str, speed_str, guard_str) = format_roll_bonuses(intents.rolls, false);
+        ctx.print(x_start + 3 - (power_str.len() as i32), y_stats, power_str);
+        ctx.print(x_start + 6 - (speed_str.len() as i32), y_stats, speed_str);
+        ctx.print(x_start + 9 - (guard_str.len() as i32), y_stats, guard_str);
+    }
+}
+
+fn format_roll_bonuses<'a>(
+    rolls: (i32, i32, i32, i32, bool),
+    incoming: bool,
+) -> (String, String, String) {
+    let (s1, s2, s3, s4, incoming_first) = rolls;
+
+    let incoming_strings = {
+        let power_str = format!("+{}", s4);
+        let speed_str = format!("+{}", s1);
+        let guard_str = format!(" 0");
+        (power_str, speed_str, guard_str)
+    };
+
+    let outgoing_strings = {
+        let power_str = format!(" 0");
+        let speed_str = format!("+{}", s2);
+        let guard_str = format!("+{}", s3);
+        (power_str, speed_str, guard_str)
+    };
+
+    if incoming_first {
+        if incoming {
+            incoming_strings
+        } else {
+            outgoing_strings
+        }
+    } else {
+        if incoming {
+            outgoing_strings
+        } else {
+            incoming_strings
+        }
     }
 }
 
