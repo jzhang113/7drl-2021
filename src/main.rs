@@ -49,6 +49,12 @@ pub struct State {
     attack_modifier: Option<AttackType>,
 }
 
+pub struct IntentData {
+    pub hidden: bool,
+    pub prev_incoming_intent: Option<AttackIntent>,
+    pub prev_outgoing_intent: Option<AttackIntent>,
+}
+
 impl State {
     fn run_systems(&mut self) -> RunState {
         self.tick += 1;
@@ -90,8 +96,9 @@ impl GameState for State {
         // draw map + gui
         gui::draw_map(&self.ecs, ctx);
         gui::draw_renderables(&self.ecs, ctx);
-        gui::draw_cards(&self.ecs, ctx);
         gui::draw_ui(&self.ecs, ctx);
+        gui::draw_cards(&self.ecs, ctx);
+        gui::draw_intents(&self.ecs, ctx);
         gui::draw_hand(&self.ecs, ctx);
 
         let mut next_status;
@@ -266,6 +273,14 @@ fn main() -> rltk::BError {
     gs.ecs.insert(deck);
 
     gs.ecs.insert(rng);
+
+    // TODO: there really has to be a better way to maintain this info, but here we are
+    let data = IntentData {
+        hidden: true,
+        prev_incoming_intent: None,
+        prev_outgoing_intent: None,
+    };
+    gs.ecs.insert(data);
 
     rltk::main_loop(context, gs)
 }

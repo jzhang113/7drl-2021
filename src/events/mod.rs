@@ -96,11 +96,11 @@ pub fn process_stack(ecs: &mut World) -> crate::RunState {
                 } else {
                     let mut entities_hit = get_affected_entities(ecs, &event.target_tiles);
 
-                    if let Some(card_name) = &event.name {
+                    if let Some(intent) = &event.attack_intent {
                         add_card_to_stack(
                             ecs,
                             &entities_hit,
-                            card_name.clone(),
+                            *intent,
                             Arc::clone(&event.target_tiles),
                         );
                     }
@@ -225,6 +225,12 @@ fn process_event(ecs: &mut World, event: Event) {
                             (s1, s2, s3, s4)
                         };
 
+                        {
+                            let mut intents = ecs.fetch_mut::<crate::IntentData>();
+                            intents.hidden = false;
+                            intents.prev_outgoing_intent = Some(stack_intent);
+                        }
+
                         // compare speed to determine which attack resolves first
                         let atk_speed = move_type::get_intent_speed(&event_intent)
                             + atk_speed_roll
@@ -287,7 +293,7 @@ fn process_event(ecs: &mut World, event: Event) {
 fn add_card_to_stack(
     ecs: &mut World,
     entities_hit: &Vec<Entity>,
-    name: String,
+    intent: AttackIntent,
     hit_range: Arc<Vec<rltk::Point>>,
 ) {
     let active_count = current_active_card_count(ecs);
@@ -295,7 +301,7 @@ fn add_card_to_stack(
 
     if entities_hit.contains(&*player) {
         let visual_event_data = Some(CardRequest {
-            name,
+            attack_intent: intent,
             offset: active_count,
             affected: hit_range,
         });
@@ -305,6 +311,12 @@ fn add_card_to_stack(
                 .lock()
                 .expect("Failed to lock CARDSTACK")
                 .push(visual_event_data);
+
+            let mut intents = ecs.fetch_mut::<crate::IntentData>();
+
+            intents.hidden = true;
+            intents.prev_incoming_intent = Some(intent);
+            intents.prev_outgoing_intent = None;
         }
     }
 }

@@ -2,9 +2,9 @@ use super::*;
 use rltk::{Algorithm2D, Rltk, RGB};
 
 // #region UI constants
-pub const MAP_X: i32 = 16;
+pub const MAP_X: i32 = SIDE_W + 1;
 pub const MAP_Y: i32 = 1;
-pub const MAP_W: i32 = 80;
+pub const MAP_W: i32 = 79;
 pub const MAP_H: i32 = 50;
 
 const CARD_Y: i32 = SIDE_H;
@@ -13,7 +13,7 @@ const CARD_H: i32 = 15;
 
 const SIDE_X: i32 = 0;
 const SIDE_Y: i32 = 0;
-const SIDE_W: i32 = 15;
+const SIDE_W: i32 = 16;
 const SIDE_H: i32 = 50;
 
 pub const CONSOLE_WIDTH: i32 = MAP_W + SIDE_W + 2;
@@ -22,6 +22,13 @@ pub const CONSOLE_HEIGHT: i32 = MAP_H + CARD_H + 2;
 const SHOW_MAP: bool = false;
 const SHOW_REND: bool = false;
 // #endregion
+
+struct AttackData {
+    name: String,
+    power: i32,
+    speed: i32,
+    guard: i32,
+}
 
 pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
     ctx.draw_box(
@@ -102,15 +109,12 @@ pub fn draw_renderables(ecs: &World, ctx: &mut Rltk) {
     }
 }
 
-pub fn draw_cards(ecs: &World, ctx: &mut Rltk) {
-    let cards = ecs.read_storage::<CardLifetime>();
+pub fn draw_cards(_ecs: &World, ctx: &mut Rltk) {
     let card_stack_active = crate::events::CARDSTACK
         .lock()
         .expect("Failed to lock CARDSTACK");
 
-    for (i, card) in card_stack_active.iter().enumerate() {
-        draw_card(card, i as i32, ctx);
-
+    for card in card_stack_active.iter() {
         ctx.set_active_console(0);
         for pos in card.affected.iter() {
             ctx.set(
@@ -123,24 +127,99 @@ pub fn draw_cards(ecs: &World, ctx: &mut Rltk) {
         }
         ctx.set_active_console(1);
     }
+}
 
-    let mut card_stack_linger = cards.join().collect::<Vec<_>>();
-    card_stack_linger.sort_by(|&a, b| a.data.offset.partial_cmp(&b.data.offset).unwrap());
-    for card in card_stack_linger {
-        draw_card(&card.data, card.data.offset, ctx);
+pub fn draw_intents(ecs: &World, ctx: &mut Rltk) {
+    let intents = ecs.fetch::<IntentData>();
+
+    ctx.print(4, 13, "INCOMING");
+    if let Some(incoming) = intents.prev_incoming_intent {
+        if intents.hidden {
+            draw_card_hidden(ctx, 3, 14, RGB::named(rltk::WHITE));
+        } else {
+            let data = AttackData {
+                name: crate::move_type::get_intent_name(&incoming),
+                power: crate::move_type::get_intent_power(&incoming),
+                speed: crate::move_type::get_intent_speed(&incoming),
+                guard: crate::move_type::get_intent_guard(&incoming),
+            };
+
+            draw_card(ctx, data, 3, 14, RGB::named(rltk::WHITE));
+        }
+    }
+
+    ctx.print(4, 32, "OUTGOING");
+    if let Some(outgoing) = intents.prev_outgoing_intent {
+        let data = AttackData {
+            name: crate::move_type::get_intent_name(&outgoing),
+            power: crate::move_type::get_intent_power(&outgoing),
+            speed: crate::move_type::get_intent_speed(&outgoing),
+            guard: crate::move_type::get_intent_guard(&outgoing),
+        };
+
+        draw_card(ctx, data, 3, 33, RGB::named(rltk::WHITE));
     }
 }
 
-fn draw_card(card: &CardRequest, offset: i32, ctx: &mut Rltk) {
+fn draw_card_hidden(ctx: &mut Rltk, x_start: i32, y_start: i32, fore_color: RGB) {
     ctx.draw_box(
-        50 + 3 * offset,
-        10,
-        10,
-        15,
-        RGB::named(rltk::WHITE),
+        x_start,
+        y_start,
+        CARD_W,
+        CARD_H,
+        fore_color,
         RGB::named(rltk::BLACK),
     );
-    ctx.print(51 + 3 * offset, 11, card.name.clone());
+
+    ctx.print(x_start + 1, y_start + 1, "???");
+}
+
+fn draw_card(ctx: &mut Rltk, attack: AttackData, x_start: i32, y_start: i32, fore_color: RGB) {
+    ctx.draw_box(
+        x_start,
+        y_start,
+        CARD_W,
+        CARD_H,
+        fore_color,
+        RGB::named(rltk::BLACK),
+    );
+
+    ctx.print(x_start + 1, y_start + 1, attack.name);
+
+    let y_stats = y_start + 3;
+
+    // stat values
+    let power_str = format!("{}", attack.power);
+    let speed_str = format!("{}", attack.speed);
+    let guard_str = format!("{}", attack.guard);
+    ctx.print(x_start + 3 - (power_str.len() as i32), y_stats, power_str);
+    ctx.print(x_start + 6 - (speed_str.len() as i32), y_stats, speed_str);
+    ctx.print(x_start + 9 - (guard_str.len() as i32), y_stats, guard_str);
+
+    // stat icons
+    ctx.set_active_console(2);
+    ctx.set(
+        x_start + 3,
+        y_stats,
+        RGB::named(rltk::RED),
+        RGB::named(rltk::BLACK),
+        1,
+    );
+    ctx.set(
+        x_start + 6,
+        y_stats,
+        RGB::named(rltk::YELLOW),
+        RGB::named(rltk::BLACK),
+        2,
+    );
+    ctx.set(
+        x_start + 9,
+        y_stats,
+        RGB::named(rltk::LIGHTBLUE),
+        RGB::named(rltk::BLACK),
+        0,
+    );
+    ctx.set_active_console(1);
 }
 
 pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
@@ -250,60 +329,23 @@ pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
     for (i, card) in deck.hand.iter().enumerate() {
         let index = i as i32;
         let fore_color;
-
         if index == deck.selected {
             fore_color = RGB::named(rltk::GOLD);
         } else {
             fore_color = RGB::from_hex("#AFE0CE").unwrap();
         }
 
-        ctx.draw_box(
-            start_x + (CARD_W + 1) * (i as i32),
-            CARD_Y,
-            CARD_W,
-            CARD_H,
-            fore_color,
-            RGB::named(rltk::BLACK),
-        );
+        let xpos = start_x + (CARD_W + 1) * (i as i32);
+        let ypos = CARD_Y;
 
-        let attack_name = crate::move_type::get_attack_name(card);
-        let xpos = start_x + 1 + (CARD_W + 1) * (i as i32);
-        let ypos = CARD_Y + 4;
+        let data = AttackData {
+            name: format!("{}) {}", i + 1, crate::move_type::get_attack_name(card)),
+            power: crate::move_type::get_attack_power(card),
+            speed: crate::move_type::get_attack_speed(card),
+            guard: crate::move_type::get_attack_guard(card),
+        };
 
-        ctx.print(xpos, CARD_Y + 1, format!("{}) {}", i + 1, attack_name));
-
-        // stat values
-        let power_str = format!("{}", crate::move_type::get_attack_power(card));
-        let speed_str = format!("{}", crate::move_type::get_attack_speed(card));
-        let guard_str = format!("{}", crate::move_type::get_attack_guard(card));
-        ctx.print(xpos + 2 - (power_str.len() as i32), ypos, power_str);
-        ctx.print(xpos + 5 - (speed_str.len() as i32), ypos, speed_str);
-        ctx.print(xpos + 8 - (guard_str.len() as i32), ypos, guard_str);
-
-        // stat icons
-        ctx.set_active_console(2);
-        ctx.set(
-            xpos + 2,
-            ypos,
-            RGB::named(rltk::RED),
-            RGB::named(rltk::BLACK),
-            1,
-        );
-        ctx.set(
-            xpos + 5,
-            ypos,
-            RGB::named(rltk::YELLOW),
-            RGB::named(rltk::BLACK),
-            2,
-        );
-        ctx.set(
-            xpos + 8,
-            ypos,
-            RGB::named(rltk::LIGHTBLUE),
-            RGB::named(rltk::BLACK),
-            0,
-        );
-        ctx.set_active_console(1);
+        draw_card(ctx, data, xpos, ypos, fore_color);
     }
 }
 
@@ -334,10 +376,9 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
         RGB::named(rltk::WHITE),
         RGB::named(rltk::BLACK),
     );
-    ctx.print(SIDE_X + 1, SIDE_Y, format!("Seen"));
 
     let x = SIDE_X + 1;
-    let mut y = SIDE_Y + 2;
+    let mut y = SIDE_Y + 1;
     let mut index = 0;
 
     for (mut view, pos, health) in (&mut viewables, &positions, &healths).join() {
@@ -375,6 +416,11 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
 
         y += 2;
         index += 1;
+        if index > 5 {
+            break;
+        }
+
+        // TODO: what to do with excess?
     }
 
     // ctx.draw_box(
@@ -484,7 +530,7 @@ pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u
 
     ctx.set(
         0,
-        2 * index + 2,
+        2 * index + 1,
         RGB::named(rltk::GOLD),
         bg_color,
         rltk::to_cp437('>'),
@@ -520,7 +566,7 @@ pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u
 // draw a box stemming from a given point
 // returns the top left of the new box
 fn position_box(ctx: &mut Rltk, x: i32, y: i32, w: i32, h: i32, fg: RGB, bg: RGB) -> (i32, i32) {
-    let right = x + w < CONSOLE_WIDTH;
+    let right = x + w < CONSOLE_WIDTH - 1;
     let down = y + h < MAP_H;
 
     // boxes prefer to be right and down if several positions are possible
