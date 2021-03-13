@@ -34,8 +34,13 @@ pub use sys_particle::{CardRequest, ParticleBuilder, ParticleRequest};
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState {
     AwaitingInput,
-    Targetting { attack_type: AttackType },
-    ViewEnemy { index: u32 },
+    Targetting {
+        attack_type: AttackType,
+        ignore_targetting: bool,
+    },
+    ViewEnemy {
+        index: u32,
+    },
     ViewCard,
     Running,
 }
@@ -122,12 +127,15 @@ impl GameState for State {
                 gui::update_controls_text(&self.ecs, ctx, &next_status);
                 next_status = player::player_input(self, ctx);
             }
-            RunState::Targetting { attack_type } => {
+            RunState::Targetting {
+                attack_type,
+                ignore_targetting,
+            } => {
                 gui::update_controls_text(&self.ecs, ctx, &next_status);
                 let range_type = crate::move_type::get_attack_range(&attack_type);
                 let tiles_in_range = crate::range_type::resolve_range_at(&range_type, player_point);
 
-                let result = player::ranged_target(self, ctx, tiles_in_range);
+                let result = player::ranged_target(self, ctx, tiles_in_range, ignore_targetting);
                 match result.0 {
                     player::SelectionResult::Canceled => {
                         let mut deck = self.ecs.fetch_mut::<deck::Deck>();

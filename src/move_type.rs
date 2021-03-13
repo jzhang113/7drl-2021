@@ -59,7 +59,7 @@ fn get_intent_stat<T>(
 }
 
 pub fn get_intent_name(intent: &AttackIntent) -> String {
-    get_intent_stat(intent, get_attack_name, |x, y| format!("{} {}", x, y))
+    get_intent_stat(intent, get_attack_name, |x, y| format!("{} {}", y, x))
 }
 
 pub fn get_intent_power(intent: &AttackIntent) -> i32 {

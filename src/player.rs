@@ -63,6 +63,7 @@ fn select_card(
 
     deck.selected = index as i32;
     let attack_type = deck.hand[index];
+    let mut ignore_targetting = false;
 
     // if we are counter attacking, only allow moves that can hit
     // unselect the card if we end up quitting
@@ -102,6 +103,7 @@ fn select_card(
         // empty-shaped moves are not targetted
         if shape == crate::RangeType::Empty {
             // TODO: should this skip targetting
+            ignore_targetting = true;
         }
 
         // update targetting specific state
@@ -137,7 +139,10 @@ fn select_card(
         }
     }
 
-    RunState::Targetting { attack_type }
+    RunState::Targetting {
+        attack_type,
+        ignore_targetting,
+    }
 }
 
 pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
@@ -270,53 +275,76 @@ pub fn ranged_target(
     gs: &mut State,
     ctx: &mut Rltk,
     tiles_in_range: Vec<Point>,
+    ignore_targetting: bool,
 ) -> (SelectionResult, Option<Point>) {
     let players = gs.ecs.read_storage::<Player>();
     let viewsheds = gs.ecs.read_storage::<Viewshed>();
 
-    ctx.print_color(
-        crate::gui::MAP_X,
-        crate::gui::MAP_Y - 1,
-        rltk::RGB::named(rltk::GOLD),
-        rltk::RGB::named(rltk::BLACK),
-        "Select Target",
-    );
+    let mut valid_target = false;
 
-    ctx.set_active_console(0);
+    if ignore_targetting {
+        ctx.print_color(
+            crate::gui::MAP_X,
+            crate::gui::MAP_Y - 1,
+            rltk::RGB::named(rltk::GOLD),
+            rltk::RGB::named(rltk::BLACK),
+            "Confirm use",
+        );
+    } else {
+        ctx.set_active_console(0);
 
-    // Highlight available target cells
-    let mut available_cells = Vec::new();
-    for (_player, viewshed) in (&players, &viewsheds).join() {
-        // We have a viewshed
-        for idx in viewshed.visible.iter() {
-            if tiles_in_range.contains(idx) {
-                ctx.set_bg(
-                    crate::gui::MAP_X + idx.x,
-                    crate::gui::MAP_Y + idx.y,
-                    rltk::RGB::named(rltk::BLUE),
-                );
-                available_cells.push(idx);
+        // Highlight available target cells
+        let mut available_cells = Vec::new();
+        for (_player, viewshed) in (&players, &viewsheds).join() {
+            // We have a viewshed
+            for idx in viewshed.visible.iter() {
+                if tiles_in_range.contains(idx) {
+                    ctx.set_bg(
+                        crate::gui::MAP_X + idx.x,
+                        crate::gui::MAP_Y + idx.y,
+                        rltk::RGB::named(rltk::BLUE),
+                    );
+                    available_cells.push(idx);
+                }
             }
         }
-    }
 
-    // Draw cursor
-    let valid_target = available_cells
-        .iter()
-        .any(|pos| pos.x == gs.cursor.x && pos.y == gs.cursor.y);
+        // Draw cursor
+        valid_target = available_cells
+            .iter()
+            .any(|pos| pos.x == gs.cursor.x && pos.y == gs.cursor.y);
 
-    let cursor_color;
-    if valid_target {
-        cursor_color = rltk::RGB::named(rltk::CYAN);
-    } else {
-        cursor_color = rltk::RGB::named(rltk::RED);
+        let cursor_color;
+        if valid_target {
+            cursor_color = rltk::RGB::named(rltk::CYAN);
+        } else {
+            cursor_color = rltk::RGB::named(rltk::RED);
+        }
+        ctx.set_bg(
+            crate::gui::MAP_X + gs.cursor.x,
+            crate::gui::MAP_Y + gs.cursor.y,
+            cursor_color,
+        );
+        ctx.set_active_console(1);
+
+        if valid_target {
+            ctx.print_color(
+                crate::gui::MAP_X,
+                crate::gui::MAP_Y - 1,
+                rltk::RGB::named(rltk::GOLD),
+                rltk::RGB::named(rltk::BLACK),
+                "Select Target",
+            );
+        } else {
+            ctx.print_color(
+                crate::gui::MAP_X,
+                crate::gui::MAP_Y - 1,
+                rltk::RGB::named(rltk::DARKGOLDENROD),
+                rltk::RGB::named(rltk::BLACK),
+                "Invalid Target",
+            );
+        }
     }
-    ctx.set_bg(
-        crate::gui::MAP_X + gs.cursor.x,
-        crate::gui::MAP_Y + gs.cursor.y,
-        cursor_color,
-    );
-    ctx.set_active_console(1);
 
     match ctx.key {
         None => {}
@@ -328,6 +356,8 @@ pub fn ranged_target(
                         SelectionResult::Selected,
                         Some(Point::new(gs.cursor.x, gs.cursor.y)),
                     );
+                } else if ignore_targetting {
+                    return (SelectionResult::Selected, None);
                 } else {
                     return (SelectionResult::Canceled, None);
                 }

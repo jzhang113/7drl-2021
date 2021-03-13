@@ -138,13 +138,7 @@ pub fn draw_active_attacks(ecs: &World, ctx: &mut Rltk) {
 
 fn highlight_bg(ctx: &mut Rltk, pos: &rltk::Point, color: RGB) {
     ctx.set_active_console(0);
-    ctx.set(
-        MAP_X + pos.x,
-        MAP_Y + pos.y,
-        color,
-        RGB::named(rltk::BLACK),
-        rltk::to_cp437('█'),
-    );
+    ctx.set_bg(MAP_X + pos.x, MAP_Y + pos.y, color);
     ctx.set_active_console(1);
 }
 
@@ -486,6 +480,7 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
     let y = CONSOLE_HEIGHT - 1;
     let icon_color = RGB::named(rltk::GOLD);
     let bg_color = RGB::named(rltk::BLACK);
+    let inactive_color = RGB::named(rltk::GREY);
 
     let is_reaction = {
         let can_act = ecs.read_storage::<super::CanActFlag>();
@@ -496,18 +491,15 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
             .is_reaction
     };
 
-    // movement controls
-    if !is_reaction {
-        let move_section_x = x;
-        ctx.set(move_section_x + 1, y, icon_color, bg_color, 27);
-        ctx.set(move_section_x + 2, y, icon_color, bg_color, 25);
-        ctx.set(move_section_x + 3, y, icon_color, bg_color, 24);
-        ctx.set(move_section_x + 4, y, icon_color, bg_color, 26);
-        ctx.print(move_section_x + 6, y, "move");
-    }
-
     match *status {
         RunState::AwaitingInput => {
+            // movement controls
+            if is_reaction {
+                draw_movement_controls(ctx, x, y, inactive_color, bg_color, true);
+            } else {
+                draw_movement_controls(ctx, x, y, icon_color, bg_color, false);
+            }
+
             // examine
             let view_section_x = 13;
             ctx.print_color(view_section_x, y, icon_color, bg_color, "v");
@@ -530,7 +522,17 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
             ctx.print_color(card_section_x, y, icon_color, bg_color, "[1-7]");
             ctx.print(card_section_x + 6, y, "use card");
         }
-        RunState::Targetting { .. } => {
+        RunState::Targetting {
+            attack_type: _,
+            ignore_targetting,
+        } => {
+            // movement controls
+            if ignore_targetting {
+                draw_movement_controls(ctx, x, y, inactive_color, bg_color, true);
+            } else {
+                draw_movement_controls(ctx, x, y, icon_color, bg_color, false);
+            }
+
             // examine
             let view_section_x = 13;
             ctx.print_color(view_section_x, y, icon_color, bg_color, "v");
@@ -548,10 +550,24 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
 
             // tab target
             let tab_section_x = 58;
-            ctx.print_color(tab_section_x, y, icon_color, bg_color, "[TAB]");
-            ctx.print(tab_section_x + 6, y, "next target");
+            if ignore_targetting {
+                ctx.print_color(tab_section_x, y, inactive_color, bg_color, "[TAB]");
+                ctx.print_color(
+                    tab_section_x + 6,
+                    y,
+                    inactive_color,
+                    bg_color,
+                    "next target",
+                );
+            } else {
+                ctx.print_color(tab_section_x, y, icon_color, bg_color, "[TAB]");
+                ctx.print(tab_section_x + 6, y, "next target");
+            }
         }
         RunState::ViewEnemy { .. } => {
+            // movement controls
+            draw_movement_controls(ctx, x, y, icon_color, bg_color, false);
+
             // escape
             let escape_section_x = 13;
             ctx.print_color(escape_section_x, y, icon_color, bg_color, "[ESC]");
@@ -561,6 +577,20 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
     }
 
     ctx.set_active_console(1);
+}
+
+fn draw_movement_controls(ctx: &mut Rltk, x: i32, y: i32, fg: RGB, bg: RGB, inactive: bool) {
+    let move_section_x = x;
+    ctx.set(move_section_x + 1, y, fg, bg, 27);
+    ctx.set(move_section_x + 2, y, fg, bg, 25);
+    ctx.set(move_section_x + 3, y, fg, bg, 24);
+    ctx.set(move_section_x + 4, y, fg, bg, 26);
+
+    if inactive {
+        ctx.print_color(move_section_x + 6, y, fg, bg, "move");
+    } else {
+        ctx.print(move_section_x + 6, y, "move");
+    }
 }
 
 pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u32) {
