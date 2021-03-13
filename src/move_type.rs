@@ -30,28 +30,36 @@ pub fn get_attack_intent(
     }
 }
 
-pub fn get_intent_combined_damage(intent: &AttackIntent) -> i32 {
-    let damage = get_attack_power(&intent.main);
+fn get_intent_stat<T>(
+    intent: &AttackIntent,
+    retrieve: impl Fn(&AttackType) -> T,
+    combine: impl FnOnce(T, T) -> T,
+) -> T {
+    let stat = retrieve(&intent.main);
 
     match intent.modifier {
-        None => damage,
+        None => stat,
         Some(modifier) => {
-            let modifier_damage = get_attack_power(&modifier);
-            damage + modifier_damage
+            let modifier_stat = retrieve(&modifier);
+            combine(stat, modifier_stat)
         }
     }
 }
 
-pub fn get_intent_combined_name(intent: &AttackIntent) -> String {
-    let name = get_attack_name(&intent.main);
+pub fn get_intent_name(intent: &AttackIntent) -> String {
+    get_intent_stat(intent, get_attack_name, |x, y| format!("{} {}", x, y))
+}
 
-    match intent.modifier {
-        None => name,
-        Some(modifier) => {
-            let modifier_name = get_attack_name(&modifier);
-            format!("{} {}", modifier_name, name)
-        }
-    }
+pub fn get_intent_power(intent: &AttackIntent) -> i32 {
+    get_intent_stat(intent, get_attack_power, |x, y| x + y)
+}
+
+pub fn get_intent_speed(intent: &AttackIntent) -> i32 {
+    get_intent_stat(intent, get_attack_speed, |x, y| x + y)
+}
+
+pub fn get_intent_guard(intent: &AttackIntent) -> i32 {
+    get_intent_stat(intent, get_attack_guard, |x, y| x + y)
 }
 
 pub fn get_attack_range(attack_type: &AttackType) -> i32 {

@@ -1,4 +1,5 @@
 use super::{AttackIntent, CardRequest};
+use crate::move_type;
 use rltk::Point;
 use specs::prelude::*;
 use std::sync::{Arc, Mutex};
@@ -8,6 +9,12 @@ pub mod range_type;
 
 pub use event_type::EventType;
 pub use range_type::*;
+
+const ATK_SPD_BONUS: i32 = 1;
+const DEF_GUARD_BONUS: i32 = 1;
+
+const SPEED_ROLL_RANGE: i32 = 6;
+const GUARD_ROLL_RANGE: i32 = 6;
 
 lazy_static! {
     static ref STACK: Mutex<Vec<Event>> = Mutex::new(Vec::new());
@@ -47,16 +54,17 @@ pub fn add_event(
 pub fn add_damage_event(intent: &AttackIntent, source: Option<Entity>, invokes_reaction: bool) {
     let mut stack = STACK.lock().expect("Failed to lock STACK");
 
+    let intent_name = move_type::get_intent_name(intent);
     let damage_event = EventType::Damage {
-        source_name: crate::move_type::get_intent_combined_name(intent),
-        amount: crate::move_type::get_intent_combined_damage(intent),
+        source_name: intent_name.clone(),
+        amount: move_type::get_intent_power(intent),
     };
-    let range = &crate::move_type::get_attack_shape(&intent.main);
+    let range = &move_type::get_attack_shape(&intent.main);
 
     let event = Event {
         attack_intent: Some(*intent),
         resolver: event_type::get_resolver(&damage_event),
-        name: Some(crate::move_type::get_intent_combined_name(intent)),
+        name: Some(intent_name),
         source,
         target_tiles: Arc::new(range_type::resolve_range_at(range, intent.loc)),
         invokes_reaction,
@@ -170,25 +178,102 @@ fn process_event(ecs: &mut World, event: Event) {
         builder.make_card(top_card, active_count);
     }
 
-    // TODO: no clue if this can be simplified
-    let stack_event = {
-        // this lock needs to be limited in scope, since the resolver may want access to the stack via add_event
-        let mut stack = STACK.lock().expect("Failed to lock STACK");
-        stack.pop()
-    };
-
-    match stack_event {
+    match event.attack_intent {
         None => event
             .resolver
             .resolve(ecs, event.source, event.target_tiles.to_vec()),
-        Some(stack_event) => match stack_event.attack_intent {
-            None => event
-                .resolver
-                .resolve(ecs, event.source, event.target_tiles.to_vec()),
-            Some(intent) => {
-                println!("contested attack!");
+        Some(event_intent) => {
+            // TODO: no clue if this can be simplified
+            let stack_event = {
+                // this lock needs to be limited in scope, since the resolver may want access to the stack via add_event
+                let mut stack = STACK.lock().expect("Failed to lock STACK");
+                stack.pop()
+            };
+
+            match stack_event {
+                None => event
+                    .resolver
+                    .resolve(ecs, event.source, event.target_tiles.to_vec()),
+                Some(stack_event) => match stack_event.attack_intent {
+                    None => {
+                        // replace the stack event if we're not using it
+                        {
+                            STACK
+                                .lock()
+                                .expect("Failed to lock STACK")
+                                .push(stack_event);
+                        }
+
+                        event
+                            .resolver
+                            .resolve(ecs, event.source, event.target_tiles.to_vec())
+                    }
+                    Some(stack_intent) => {
+                        let (atk_speed_roll, def_speed_roll, def_guard_roll, atk_power_roll) = {
+                            let mut rng = ecs.fetch_mut::<rltk::RandomNumberGenerator>();
+                            let s1 = rng.range(0, SPEED_ROLL_RANGE);
+                            let s2 = rng.range(0, SPEED_ROLL_RANGE);
+                            let s3 = rng.range(0, GUARD_ROLL_RANGE);
+                            let s4 = rng.range(0, GUARD_ROLL_RANGE);
+                            (s1, s2, s3, s4)
+                        };
+
+                        // compare speed to determine which attack resolves first
+                        let atk_speed = move_type::get_intent_speed(&event_intent)
+                            + atk_speed_roll
+                            + ATK_SPD_BONUS;
+                        let def_speed = move_type::get_intent_speed(&stack_intent) + def_speed_roll;
+
+                        let atk;
+                        let atk_event;
+                        let def;
+                        let def_event;
+                        let def_bonus_active;
+
+                        if atk_speed > def_speed {
+                            atk = event_intent;
+                            atk_event = event;
+                            def = stack_intent;
+                            def_event = stack_event;
+                            def_bonus_active = true;
+                            println!("attacker wins the speed roll");
+                        } else {
+                            atk = stack_intent;
+                            atk_event = stack_event;
+                            def = event_intent;
+                            def_event = event;
+                            def_bonus_active = false;
+                            println!("defender wins the speed roll");
+                        }
+
+                        atk_event.resolver.resolve(
+                            ecs,
+                            atk_event.source,
+                            atk_event.target_tiles.to_vec(),
+                        );
+
+                        // compare power vs guard to determine if the defender can counter
+                        // only the defender can gain the guard bonus
+                        let mut def_guard = move_type::get_intent_guard(&def) + def_guard_roll;
+                        if def_bonus_active {
+                            def_guard += DEF_GUARD_BONUS;
+                        }
+                        let atk_power = move_type::get_intent_power(&atk) + atk_power_roll;
+
+                        if atk_power > def_guard {
+                            println!("defender is stunned!");
+                            return;
+                        }
+
+                        def_event.resolver.resolve(
+                            ecs,
+                            def_event.source,
+                            def_event.target_tiles.to_vec(),
+                        );
+                    }
+                },
             }
-        },
+        }
     }
 }
 
