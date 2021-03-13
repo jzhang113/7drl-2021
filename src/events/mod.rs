@@ -11,6 +11,7 @@ pub use range_type::*;
 
 lazy_static! {
     static ref STACK: Mutex<Vec<Event>> = Mutex::new(Vec::new());
+    static ref PROCESSING: Mutex<Option<Event>> = Mutex::new(None);
     pub static ref CARDSTACK: Mutex<Vec<CardRequest>> = Mutex::new(Vec::new());
 }
 
@@ -64,13 +65,22 @@ pub fn add_damage_event(intent: &AttackIntent, source: Option<Entity>, invokes_r
     stack.push(event);
 }
 
-pub fn process_stack(ecs: &mut World) {
+pub fn process_stack(ecs: &mut World) -> crate::RunState {
+    // if we have an event that was interrupted, resume it
+    // also we need to wrap this mutex since we try to lock it again later
+    let mut processing = PROCESSING.lock().expect("Failed to lock PROCESSING");
+    let stashed_event = processing.take();
+
+    *processing = None;
+
+    if let Some(event) = stashed_event {
+        process_event(ecs, event);
+    }
+
     loop {
         let event = STACK.lock().expect("Failed to lock STACK").pop();
         match event {
-            None => {
-                break;
-            }
+            None => return crate::RunState::Running,
             Some(event) => {
                 if event.target_tiles.is_empty() {
                     // non-targetted events
@@ -92,16 +102,23 @@ pub fn process_stack(ecs: &mut World) {
                     // check if there are entities that can respond
                     if event.invokes_reaction && !entities_hit.is_empty() {
                         let mut can_act = ecs.write_storage::<super::CanActFlag>();
+                        let mut scheds = ecs.write_storage::<super::Schedulable>();
 
                         for entity in entities_hit {
+                            if can_act.get(entity).is_some() {
+                                let mut sched = scheds.get_mut(entity).unwrap();
+                                sched.current -= sched.base;
+                            }
+
                             can_act
                                 .insert(entity, super::CanActFlag { is_reaction: true })
                                 .expect("Failed to insert CanActFlag");
                         }
 
-                        // put the event back on the stack and return control to the main loop
-                        STACK.lock().expect("Failed to lock STACK").push(event);
-                        break;
+                        // stash the current event and return control to the main loop
+                        *processing = Some(event);
+
+                        return crate::RunState::AwaitingInput;
                     } else {
                         // otherwise resolve the event
                         process_event(ecs, event);

@@ -50,7 +50,7 @@ pub struct State {
 }
 
 impl State {
-    fn run_systems(&mut self) {
+    fn run_systems(&mut self) -> RunState {
         self.tick += 1;
 
         sys_ai::AiSystem.run_now(&self.ecs);
@@ -60,7 +60,7 @@ impl State {
         sys_attack::AttackSystem.run_now(&self.ecs);
 
         // events are processed after everything relevant is added (only attacks currently)
-        events::process_stack(&mut self.ecs);
+        let run_state = events::process_stack(&mut self.ecs);
 
         // index needs to run after movement so blocked tiles are updated
         sys_mapindex::MapIndexSystem.run_now(&self.ecs);
@@ -72,6 +72,7 @@ impl State {
         sys_particle::ParticleSpawnSystem.run_now(&self.ecs);
 
         self.ecs.maintain();
+        run_state
     }
 }
 
@@ -170,7 +171,12 @@ impl GameState for State {
             RunState::Running => {
                 // uncomment while loop to skip rendering intermediate states
                 while next_status == RunState::Running {
-                    self.run_systems();
+                    next_status = self.run_systems();
+
+                    if next_status != RunState::Running {
+                        break;
+                    }
+
                     // std::thread::sleep(std::time::Duration::from_millis(100));
                     next_status = *self.ecs.fetch::<RunState>();
                 }
