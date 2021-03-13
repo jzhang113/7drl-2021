@@ -183,18 +183,18 @@ fn update_hand(ecs: &mut World) {
 
 // if we are in a reaction, remove the CanReact flag
 // otherwise, we are on the main turn, so restore the flag
-fn update_reaction_state(ecs: &mut World, is_reaction: bool) {
-    let player = ecs.fetch::<Entity>();
+fn update_reaction_state(ecs: &mut World, _is_reaction: bool) {
+    // let player = ecs.fetch::<Entity>();
     let mut can_act = ecs.write_storage::<super::CanActFlag>();
-    let mut can_react = ecs.write_storage::<super::CanReactFlag>();
+    // let mut can_react = ecs.write_storage::<super::CanReactFlag>();
 
-    if is_reaction {
-        can_react.remove(*player);
-    } else {
-        can_react
-            .insert(*player, super::CanReactFlag {})
-            .expect("Failed to insert CanReactFlag");
-    }
+    // if is_reaction {
+    //     can_react.remove(*player);
+    // } else {
+    //     can_react
+    //         .insert(*player, super::CanReactFlag {})
+    //         .expect("Failed to insert CanReactFlag");
+    // }
 
     can_act.clear();
 }
