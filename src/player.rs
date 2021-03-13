@@ -24,6 +24,10 @@ fn try_move_player(ecs: &mut World, dx: i32, dy: i32) -> RunState {
                 .insert(*player, new_move)
                 .expect("Failed to insert new movement from player");
 
+            let mut intents = ecs.fetch_mut::<crate::IntentData>();
+            intents.prev_incoming_intent = None;
+            intents.prev_outgoing_intent = None;
+
             return RunState::Running;
         } else if map.tiles[dest_index] != crate::TileType::Wall {
             // TODO: implement push
@@ -238,7 +242,12 @@ fn handle_keys(
                 }
             }
             VirtualKeyCode::V => RunState::ViewEnemy { index: 0 },
-            VirtualKeyCode::Space => RunState::Running,
+            VirtualKeyCode::Space => {
+                let mut intents = gs.ecs.fetch_mut::<crate::IntentData>();
+                intents.hidden = false;
+
+                RunState::Running
+            }
             VirtualKeyCode::Key1 => select_card(gs, 0, is_reaction, reaction_target),
             VirtualKeyCode::Key2 => select_card(gs, 1, is_reaction, reaction_target),
             VirtualKeyCode::Key3 => select_card(gs, 2, is_reaction, reaction_target),

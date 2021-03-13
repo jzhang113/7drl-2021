@@ -96,8 +96,8 @@ impl GameState for State {
         // draw map + gui
         gui::draw_map(&self.ecs, ctx);
         gui::draw_renderables(&self.ecs, ctx);
-        gui::draw_ui(&self.ecs, ctx);
-        gui::draw_cards(&self.ecs, ctx);
+        gui::draw_sidebar(&self.ecs, ctx);
+        gui::draw_active_attacks(&self.ecs, ctx);
         gui::draw_intents(&self.ecs, ctx);
         gui::draw_hand(&self.ecs, ctx);
 
@@ -152,6 +152,8 @@ impl GameState for State {
                                 );
                                 let player = self.ecs.fetch::<Entity>();
                                 let mut attacks = self.ecs.write_storage::<AttackIntent>();
+                                let mut intents = self.ecs.fetch_mut::<IntentData>();
+                                intents.prev_outgoing_intent = Some(intent);
 
                                 attacks
                                     .insert(*player, intent)
@@ -234,6 +236,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<AttackIntent>();
     gs.ecs.register::<MoveIntent>();
     gs.ecs.register::<Moveset>();
+    gs.ecs.register::<AttackInProgress>();
 
     gs.ecs.insert(RunState::Running);
     gs.ecs.insert(sys_particle::ParticleBuilder::new());

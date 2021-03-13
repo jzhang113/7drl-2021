@@ -98,3 +98,6 @@ pub struct Viewable {
     pub symbol: rltk::FontCharType,
     pub list_index: Option<u32>,
 }
+
+#[derive(Component)]
+pub struct AttackInProgress;

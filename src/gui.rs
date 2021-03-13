@@ -109,24 +109,43 @@ pub fn draw_renderables(ecs: &World, ctx: &mut Rltk) {
     }
 }
 
-pub fn draw_cards(_ecs: &World, ctx: &mut Rltk) {
+pub fn draw_active_attacks(ecs: &World, ctx: &mut Rltk) {
     let card_stack_active = crate::events::CARDSTACK
         .lock()
         .expect("Failed to lock CARDSTACK");
 
     for card in card_stack_active.iter() {
-        ctx.set_active_console(0);
-        for pos in card.affected.iter() {
-            ctx.set(
-                MAP_X + pos.x,
-                MAP_Y + pos.y,
-                RGB::named(rltk::RED),
-                RGB::named(rltk::BLACK),
-                rltk::to_cp437('█'),
+        if let Some(attack_ent) = card.source {
+            // highlight source on map
+            let positions = ecs.read_storage::<Position>();
+            let attack_pos = positions
+                .get(attack_ent)
+                .expect("Unexpected attack source without a position");
+
+            highlight_bg(
+                ctx,
+                &Position::as_point(attack_pos),
+                RGB::named(rltk::GREEN),
             );
         }
-        ctx.set_active_console(1);
+
+        // highlight affected tiles
+        for pos in card.affected.iter() {
+            highlight_bg(ctx, pos, RGB::named(rltk::RED));
+        }
     }
+}
+
+fn highlight_bg(ctx: &mut Rltk, pos: &rltk::Point, color: RGB) {
+    ctx.set_active_console(0);
+    ctx.set(
+        MAP_X + pos.x,
+        MAP_Y + pos.y,
+        color,
+        RGB::named(rltk::BLACK),
+        rltk::to_cp437('█'),
+    );
+    ctx.set_active_console(1);
 }
 
 pub fn draw_intents(ecs: &World, ctx: &mut Rltk) {
@@ -357,11 +376,12 @@ fn pluralize(root: String, count: i32) -> String {
     }
 }
 
-pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
+pub fn draw_sidebar(ecs: &World, ctx: &mut Rltk) {
     let healths = ecs.read_storage::<Health>();
     let mut viewables = ecs.write_storage::<Viewable>();
     let viewsheds = ecs.read_storage::<Viewshed>();
     let positions = ecs.read_storage::<Position>();
+    let in_progress = ecs.read_storage::<AttackInProgress>();
 
     let player = ecs.fetch::<Entity>();
     let player_view = viewsheds
@@ -381,7 +401,9 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
     let mut y = SIDE_Y + 1;
     let mut index = 0;
 
-    for (mut view, pos, health) in (&mut viewables, &positions, &healths).join() {
+    for (mut view, pos, health, attack) in
+        (&mut viewables, &positions, &healths, (&in_progress).maybe()).join()
+    {
         if !player_view
             .visible
             .iter()
@@ -390,7 +412,22 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
             continue;
         }
 
-        ctx.print(x, y, format!("{}:", view.symbol as u8 as char));
+        // change symbol color if attacking
+        let symbol_color;
+        if attack.is_some() {
+            symbol_color = RGB::named(rltk::GREEN);
+        } else {
+            symbol_color = RGB::named(rltk::WHITE);
+        }
+
+        ctx.set(x, y, symbol_color, RGB::named(rltk::BLACK), view.symbol);
+        ctx.set(
+            x + 1,
+            y,
+            RGB::named(rltk::WHITE),
+            RGB::named(rltk::BLACK),
+            rltk::to_cp437(':'),
+        );
         view.list_index = Some(index);
         let curr_hp = std::cmp::max(0, health.current);
 
@@ -450,25 +487,27 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
     let icon_color = RGB::named(rltk::GOLD);
     let bg_color = RGB::named(rltk::BLACK);
 
+    let is_reaction = {
+        let can_act = ecs.read_storage::<super::CanActFlag>();
+        let player = ecs.fetch::<Entity>();
+        can_act
+            .get(*player)
+            .expect("uh-oh, we're waiting for input but the player can't act")
+            .is_reaction
+    };
+
     // movement controls
-    let move_section_x = x;
-    ctx.set(move_section_x + 1, y, icon_color, bg_color, 27);
-    ctx.set(move_section_x + 2, y, icon_color, bg_color, 25);
-    ctx.set(move_section_x + 3, y, icon_color, bg_color, 24);
-    ctx.set(move_section_x + 4, y, icon_color, bg_color, 26);
-    ctx.print(move_section_x + 6, y, "move");
+    if !is_reaction {
+        let move_section_x = x;
+        ctx.set(move_section_x + 1, y, icon_color, bg_color, 27);
+        ctx.set(move_section_x + 2, y, icon_color, bg_color, 25);
+        ctx.set(move_section_x + 3, y, icon_color, bg_color, 24);
+        ctx.set(move_section_x + 4, y, icon_color, bg_color, 26);
+        ctx.print(move_section_x + 6, y, "move");
+    }
 
     match *status {
         RunState::AwaitingInput => {
-            let is_reaction = {
-                let can_act = ecs.read_storage::<super::CanActFlag>();
-                let player = ecs.fetch::<Entity>();
-                can_act
-                    .get(*player)
-                    .expect("uh-oh, we're waiting for input but the player can't act")
-                    .is_reaction
-            };
-
             // examine
             let view_section_x = 13;
             ctx.print_color(view_section_x, y, icon_color, bg_color, "v");
@@ -539,6 +578,7 @@ pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u
     let positions = ecs.read_storage::<Position>();
     let viewables = ecs.read_storage::<Viewable>();
     let healths = ecs.read_storage::<Health>();
+    let atk_in_progress = ecs.read_storage::<AttackInProgress>();
 
     let pos = positions
         .get(*entity)
@@ -549,9 +589,7 @@ pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u
     let x = MAP_X + pos.x;
     let y = MAP_Y + pos.y;
 
-    ctx.set_active_console(0);
-    ctx.set(x, y, selected_color, bg_color, rltk::to_cp437('█'));
-    ctx.set_active_console(1);
+    highlight_bg(ctx, &Position::as_point(pos), selected_color);
 
     let (box_x, box_y) = position_box(ctx, x, y, 10, 10, selected_color, bg_color);
 
@@ -561,6 +599,12 @@ pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u
         box_y + 1,
         format!("HP: {}/{}", health.current, health.max),
     );
+
+    if atk_in_progress.get(*entity).is_some() {
+        ctx.print(box_x + 1, box_y + 3, "Attacking");
+    } else {
+        ctx.print(box_x + 1, box_y + 3, "Idle");
+    }
 }
 
 // draw a box stemming from a given point

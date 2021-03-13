@@ -43,6 +43,7 @@ pub struct ParticleRequest {
 
 pub struct CardRequest {
     pub attack_intent: crate::AttackIntent,
+    pub source: Option<Entity>,
     pub offset: i32,
     pub affected: std::sync::Arc<Vec<rltk::Point>>,
 }

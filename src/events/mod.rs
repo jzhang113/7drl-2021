@@ -82,6 +82,12 @@ pub fn process_stack(ecs: &mut World) -> crate::RunState {
     *processing = None;
 
     if let Some(event) = stashed_event {
+        // the stashed event is no longer in-progress
+        if let Some(event_ent) = event.source {
+            let mut in_progress = ecs.write_storage::<crate::AttackInProgress>();
+            in_progress.remove(event_ent);
+        }
+
         process_event(ecs, event);
     }
 
@@ -101,6 +107,7 @@ pub fn process_stack(ecs: &mut World) -> crate::RunState {
                             ecs,
                             &entities_hit,
                             *intent,
+                            event.source,
                             Arc::clone(&event.target_tiles),
                         );
                     }
@@ -130,6 +137,13 @@ pub fn process_stack(ecs: &mut World) -> crate::RunState {
                                 .expect("Failed to insert CanActFlag");
                         }
 
+                        // this event is now in-progress if it came from an entity
+                        if let Some(event_ent) = event.source {
+                            let mut in_progress = ecs.write_storage::<crate::AttackInProgress>();
+                            in_progress
+                                .insert(event_ent, crate::AttackInProgress)
+                                .expect("couldn't mark event as in progress");
+                        }
                         // stash the current event and return control to the main loop
                         *processing = Some(event);
 
@@ -228,7 +242,6 @@ fn process_event(ecs: &mut World, event: Event) {
                         {
                             let mut intents = ecs.fetch_mut::<crate::IntentData>();
                             intents.hidden = false;
-                            intents.prev_outgoing_intent = Some(stack_intent);
                         }
 
                         // compare speed to determine which attack resolves first
@@ -294,6 +307,7 @@ fn add_card_to_stack(
     ecs: &mut World,
     entities_hit: &Vec<Entity>,
     intent: AttackIntent,
+    source: Option<Entity>,
     hit_range: Arc<Vec<rltk::Point>>,
 ) {
     let active_count = current_active_card_count(ecs);
@@ -302,6 +316,7 @@ fn add_card_to_stack(
     if entities_hit.contains(&*player) {
         let visual_event_data = Some(CardRequest {
             attack_intent: intent,
+            source,
             offset: active_count,
             affected: hit_range,
         });
