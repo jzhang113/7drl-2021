@@ -146,10 +146,7 @@ pub fn build_barrel(ecs: &mut World, point: Point) -> Entity {
         .with(BlocksTile)
         .with(Health { current: 2, max: 2 })
         .with(DeathTrigger {
-            event: EventType::Damage {
-                source_name: "explosion".to_string(),
-                amount: 1,
-            },
+            event: EventType::Damage { amount: 1 },
             range: RangeType::Square { size: 1 },
         })
         .build()

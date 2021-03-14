@@ -23,9 +23,9 @@ lazy_static! {
 }
 
 struct Event {
+    event_type: EventType,
     attack_intent: Option<AttackIntent>,
     resolver: Box<dyn event_type::EventResolver + Send>,
-    name: Option<String>,
     source: Option<Entity>,
     target_tiles: Arc<Vec<Point>>,
     invokes_reaction: bool,
@@ -40,9 +40,9 @@ pub fn add_event(
 ) {
     let mut stack = STACK.lock().expect("Failed to lock STACK");
     let event = Event {
+        event_type: *event_type,
         attack_intent: None,
         resolver: event_type::get_resolver(event_type),
-        name: event_type::get_name(event_type),
         source,
         target_tiles: Arc::new(range_type::resolve_range_at(range, loc)),
         invokes_reaction,
@@ -54,17 +54,16 @@ pub fn add_event(
 pub fn add_damage_event(intent: &AttackIntent, source: Option<Entity>, invokes_reaction: bool) {
     let mut stack = STACK.lock().expect("Failed to lock STACK");
 
-    let intent_name = move_type::get_intent_name(intent);
     let damage_event = EventType::Damage {
-        source_name: intent_name.clone(),
         amount: move_type::get_intent_power(intent),
     };
     let range = &move_type::get_attack_shape(&intent.main);
+    let resolver = event_type::get_resolver(&damage_event);
 
     let event = Event {
+        event_type: damage_event,
         attack_intent: Some(*intent),
-        resolver: event_type::get_resolver(&damage_event),
-        name: Some(intent_name),
+        resolver,
         source,
         target_tiles: Arc::new(range_type::resolve_range_at(range, intent.loc)),
         invokes_reaction,
@@ -89,6 +88,10 @@ pub fn process_stack(ecs: &mut World) -> crate::RunState {
         }
 
         process_event(ecs, event);
+
+        return crate::RunState::HitPause {
+            remaining_time: 600.0,
+        };
     }
 
     loop {
@@ -154,6 +157,31 @@ pub fn process_stack(ecs: &mut World) -> crate::RunState {
                     }
                 }
             }
+        }
+    }
+}
+
+// TODO: graphical effects need to be unentangled from the stack
+pub fn process_stack_visual_only(ecs: &mut World) -> bool {
+    loop {
+        let event = {
+            let mut stack = STACK.lock().expect("Failed to lock STACK");
+            stack.pop()
+        };
+
+        match event {
+            None => {
+                return true;
+            }
+            Some(event) => match event.event_type {
+                EventType::ParticleSpawn { .. } => {
+                    process_event(ecs, event);
+                }
+                _ => {
+                    STACK.lock().expect("Failed to lock STACK").push(event);
+                    return false;
+                }
+            },
         }
     }
 }

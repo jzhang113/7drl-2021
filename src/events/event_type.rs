@@ -2,30 +2,17 @@ use crate::ParticleRequest;
 use rltk::{Algorithm2D, Point};
 use specs::prelude::*;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum EventType {
-    Damage { source_name: String, amount: i32 },
+    Damage { amount: i32 },
     Push { source_pos: Point, amount: i32 },
     ParticleSpawn { request: ParticleRequest },
     // ShowCard { request: CardRequest, offset: i32 },
 }
 
-pub fn get_name(event: &EventType) -> Option<String> {
-    match event {
-        EventType::Damage {
-            source_name,
-            amount: _,
-        } => Some(source_name.clone()),
-        _ => None,
-    }
-}
-
 pub fn get_resolver(event: &EventType) -> Box<dyn EventResolver + Send> {
     match event {
-        EventType::Damage {
-            source_name: _,
-            amount,
-        } => Box::new(DamageResolver { amount: *amount }),
+        EventType::Damage { amount } => Box::new(DamageResolver { amount: *amount }),
         EventType::Push { source_pos, amount } => Box::new(PushResolver {
             source_pos: *source_pos,
             amount: *amount,

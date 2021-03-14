@@ -560,7 +560,12 @@ pub fn draw_sidebar(ecs: &World, ctx: &mut Rltk) {
 
 pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
     ctx.set_active_console(3);
-    ctx.cls();
+
+    // don't clear the previous line in hitpause
+    match *status {
+        RunState::HitPause { .. } => {}
+        _ => ctx.cls(),
+    };
 
     let x = 0;
     let y = CONSOLE_HEIGHT - 1;
@@ -677,6 +682,9 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
                 " DEAD",
             );
         }
+        RunState::HitPause { .. } => {
+            ctx.print_color(CONSOLE_WIDTH - 6, y, inactive_color, bg_color, " WAIT");
+        }
         _ => {}
     }
 
@@ -712,6 +720,7 @@ pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u
     let viewables = ecs.read_storage::<Viewable>();
     let healths = ecs.read_storage::<Health>();
     let atk_in_progress = ecs.read_storage::<AttackInProgress>();
+    let blocking = ecs.read_storage::<BlockAttack>();
 
     let pos = positions
         .get(*entity)
@@ -735,6 +744,8 @@ pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u
 
     if atk_in_progress.get(*entity).is_some() {
         ctx.print(box_x + 1, box_y + 3, "Attacking");
+    } else if blocking.get(*entity).is_some() {
+        ctx.print(box_x + 1, box_y + 3, "Blocking");
     } else {
         ctx.print(box_x + 1, box_y + 3, "Idle");
     }

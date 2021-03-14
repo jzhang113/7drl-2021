@@ -44,6 +44,9 @@ pub enum RunState {
     },
     ViewCard,
     Running,
+    HitPause {
+        remaining_time: f32,
+    },
     Dead,
 }
 
@@ -285,6 +288,25 @@ impl GameState for State {
 
                     // std::thread::sleep(std::time::Duration::from_millis(100));
                     next_status = *self.ecs.fetch::<RunState>();
+                }
+            }
+            RunState::HitPause { remaining_time } => {
+                {
+                    gui::update_controls_text(&self.ecs, ctx, &next_status);
+                    let mut intents = self.ecs.fetch_mut::<crate::IntentData>();
+                    intents.hidden = false;
+                }
+
+                let stack_empty = events::process_stack_visual_only(&mut self.ecs);
+                sys_particle::ParticleSpawnSystem.run_now(&self.ecs);
+
+                let new_time = remaining_time - ctx.frame_time_ms;
+                if new_time < 0.0 || stack_empty {
+                    next_status = RunState::Running;
+                } else {
+                    next_status = RunState::HitPause {
+                        remaining_time: new_time,
+                    }
                 }
             }
             RunState::Dead => {
