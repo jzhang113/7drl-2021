@@ -13,6 +13,7 @@ impl<'a> System<'a> for MapIndexSystem {
     fn run(&mut self, data: Self::SystemData) {
         let (mut map, positions, blockers) = data;
 
+        // TODO: this is probably not needed anymore, but just in case
         map.set_blocked_tiles();
         for (pos, _blocked) in (&positions, &blockers).join() {
             let index = map.get_index(pos.x, pos.y);
