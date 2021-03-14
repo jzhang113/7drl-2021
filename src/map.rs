@@ -12,6 +12,7 @@ pub struct Map {
     pub rooms: Vec<Rect>,
     pub width: i32,
     pub height: i32,
+    pub color_map: Vec<rltk::RGB>,
     pub known_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked_tiles: Vec<bool>,
@@ -84,6 +85,7 @@ impl Map {
             for x in room.x1..=room.x2 {
                 let index = self.get_index(x, y);
                 self.tiles[index] = TileType::Floor;
+                self.color_map[index] = crate::map_floor_color();
             }
         }
 
@@ -114,6 +116,7 @@ impl Map {
 
             let index = self.get_index(next_x, next_y);
             self.tiles[index] = TileType::Floor;
+            self.color_map[index] = crate::map_floor_color();
         }
 
         for dy in yrange {
@@ -122,6 +125,7 @@ impl Map {
 
             let index = self.get_index(next_x, next_y);
             self.tiles[index] = TileType::Floor;
+            self.color_map[index] = crate::map_floor_color();
         }
     }
 }
@@ -133,6 +137,7 @@ pub fn build_rogue_map(width: i32, height: i32, rng: &mut rltk::RandomNumberGene
         rooms: vec![],
         width: width,
         height: height,
+        color_map: (0..dim).map(|_| crate::map_wall_color(rng)).collect(),
         known_tiles: vec![false; dim],
         visible_tiles: vec![false; dim],
         blocked_tiles: vec![false; dim],

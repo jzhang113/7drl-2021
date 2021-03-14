@@ -41,16 +41,14 @@ pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
     for (idx, tile) in map.tiles.iter().enumerate() {
         if map.known_tiles[idx] || SHOW_MAP {
             let symbol;
-            let mut fg;
+            let mut fg = map.color_map[idx];
 
             match tile {
                 TileType::Floor => {
                     symbol = rltk::to_cp437('.');
-                    fg = map_floor_color();
                 }
                 TileType::Wall => {
                     symbol = rltk::to_cp437('#');
-                    fg = map_wall_color();
                 }
             }
 

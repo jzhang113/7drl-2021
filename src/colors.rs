@@ -1,4 +1,4 @@
-use rltk::RGB;
+use rltk::{RandomNumberGenerator, HSV, RGB};
 
 pub fn card_priority_color() -> RGB {
     RGB::named(rltk::GREEN)
@@ -49,11 +49,15 @@ pub fn text_dead_color() -> RGB {
 }
 
 pub fn map_floor_color() -> RGB {
-    RGB::from_f32(0.0, 0.5, 0.5)
+    let hsv = HSV::from_f32(0.3, 0.2, 0.2);
+    hsv.to_rgb()
 }
 
-pub fn map_wall_color() -> RGB {
-    RGB::from_f32(0., 1.0, 0.)
+pub fn map_wall_color(rng: &mut RandomNumberGenerator) -> RGB {
+    let hue_change = 0.25 * (rng.rand::<f32>() - 0.2);
+    let sat_change = 0.1 * (rng.rand::<f32>() - 0.5);
+    let hsv = HSV::from_f32(0.05 + hue_change, 0.25 + sat_change, 0.6);
+    hsv.to_rgb()
 }
 
 pub fn attack_source_color() -> RGB {
