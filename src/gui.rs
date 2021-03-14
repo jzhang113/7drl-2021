@@ -23,8 +23,6 @@ const SHOW_MAP: bool = false;
 const SHOW_REND: bool = false;
 // #endregion
 
-type Rolls = (i32, i32, i32, i32, bool);
-
 pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
     ctx.draw_box(
         MAP_X - 1,
@@ -48,18 +46,18 @@ pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
             match tile {
                 TileType::Floor => {
                     symbol = rltk::to_cp437('.');
-                    fg = RGB::from_f32(0.0, 0.5, 0.5);
+                    fg = map_floor_color();
                 }
                 TileType::Wall => {
                     symbol = rltk::to_cp437('#');
-                    fg = RGB::from_f32(0., 1.0, 0.);
+                    fg = map_wall_color();
                 }
             }
 
             if !map.visible_tiles[idx] {
                 fg = fg.to_greyscale()
             }
-            ctx.set(MAP_X + x, MAP_Y + y, fg, RGB::from_f32(0., 0., 0.), symbol);
+            ctx.set(MAP_X + x, MAP_Y + y, fg, bg_color(), symbol);
         }
 
         x += 1;
@@ -83,7 +81,7 @@ pub fn draw_renderables(ecs: &World, ctx: &mut Rltk) {
 
             if lifetime.should_fade {
                 let fade_percent = ezing::expo_inout(1.0 - lifetime.remaining / lifetime.base);
-                let base_color = RGB::named(rltk::BLACK);
+                let base_color = bg_color();
 
                 fg = fg.lerp(base_color, fade_percent);
                 bg = bg.lerp(base_color, fade_percent);
@@ -117,16 +115,12 @@ pub fn draw_active_attacks(ecs: &World, ctx: &mut Rltk) {
                 .get(attack_ent)
                 .expect("Unexpected attack source without a position");
 
-            highlight_bg(
-                ctx,
-                &Position::as_point(attack_pos),
-                RGB::named(rltk::GREEN),
-            );
+            highlight_bg(ctx, &Position::as_point(attack_pos), attack_source_color());
         }
 
         // highlight affected tiles
         for pos in card.affected.iter() {
-            highlight_bg(ctx, pos, RGB::named(rltk::RED));
+            highlight_bg(ctx, pos, attack_target_color());
         }
     }
 }
@@ -145,18 +139,22 @@ pub fn draw_intents(ecs: &World, ctx: &mut Rltk) {
         if intents.hidden {
             draw_card_hidden(ctx, 3, 14, RGB::named(rltk::WHITE));
         } else {
-            draw_card_combined(ctx, incoming, 3, 14, intents.rolls, true);
+            draw_card_combined(ctx, incoming, 3, 14, &*intents, true);
         }
     }
 
     ctx.print(4, 32, "OUTGOING");
     if let Some(outgoing) = intents.prev_outgoing_intent {
-        draw_card_combined(ctx, outgoing, 3, 33, intents.rolls, false);
+        draw_card_combined(ctx, outgoing, 3, 33, &*intents, false);
     }
 }
 
-fn format_roll_bonuses<'a>(rolls: Rolls, incoming: bool) -> (String, String, String) {
-    let (s1, s2, s3, s4, incoming_first) = rolls;
+fn format_roll_bonuses<'a>(
+    rolls: IntentRolls,
+    speed_check: bool,
+    incoming: bool,
+) -> (String, String, String) {
+    let (s1, s2, s3, s4) = rolls;
 
     let incoming_strings = {
         let power_str = format!("+{}", s4);
@@ -172,7 +170,7 @@ fn format_roll_bonuses<'a>(rolls: Rolls, incoming: bool) -> (String, String, Str
         (power_str, speed_str, guard_str)
     };
 
-    if incoming_first {
+    if speed_check {
         if incoming {
             incoming_strings
         } else {
@@ -188,14 +186,7 @@ fn format_roll_bonuses<'a>(rolls: Rolls, incoming: bool) -> (String, String, Str
 }
 
 fn draw_card_hidden(ctx: &mut Rltk, x_start: i32, y_start: i32, fore_color: RGB) {
-    ctx.draw_box(
-        x_start,
-        y_start,
-        CARD_W,
-        CARD_H,
-        fore_color,
-        RGB::named(rltk::BLACK),
-    );
+    ctx.draw_box(x_start, y_start, CARD_W, CARD_H, fore_color, bg_color());
 
     ctx.print(x_start + 1, y_start + 1, "???");
 }
@@ -210,22 +201,15 @@ fn draw_card_hand(
 ) {
     let timing = crate::move_type::get_attack_timing(&attack);
     let border_color = if selected {
-        RGB::named(rltk::GOLD)
+        card_select_color()
     } else {
         match timing {
-            crate::AttackTiming::Slow => RGB::from_hex("#4E5166").unwrap(),
-            crate::AttackTiming::Fast => RGB::from_hex("#AFE0CE").unwrap(),
+            crate::AttackTiming::Slow => slow_card_color(),
+            crate::AttackTiming::Fast => fast_card_color(),
         }
     };
 
-    ctx.draw_box(
-        x_start,
-        y_start,
-        CARD_W,
-        CARD_H,
-        border_color,
-        RGB::named(rltk::BLACK),
-    );
+    ctx.draw_box(x_start, y_start, CARD_W, CARD_H, border_color, bg_color());
 
     let name = format!(
         "{}) {}",
@@ -279,17 +263,33 @@ fn draw_card_combined(
     attack: AttackIntent,
     x_start: i32,
     y_start: i32,
-    rolls: Rolls,
+    intents: &IntentData,
     incoming: bool,
 ) {
-    ctx.draw_box(
-        x_start,
-        y_start,
-        CARD_W,
-        CARD_H,
-        RGB::named(rltk::WHITE),
-        RGB::named(rltk::BLACK),
-    );
+    let mut border_color = RGB::named(rltk::WHITE);
+    if intents.incoming_went_first && incoming {
+        border_color = card_priority_color();
+    } else if !intents.incoming_went_first && !incoming {
+        border_color = card_priority_color();
+    }
+
+    if intents.defender_was_interrupted {
+        if intents.incoming_went_first && !incoming {
+            border_color = card_interrupted_color();
+        } else if !intents.incoming_went_first && incoming {
+            border_color = card_interrupted_color();
+        }
+    }
+
+    if intents.prev_incoming_intent.is_none() {
+        border_color = RGB::named(rltk::WHITE);
+    }
+
+    if intents.prev_outgoing_intent.is_none() {
+        border_color = card_blocked_color();
+    }
+
+    ctx.draw_box(x_start, y_start, CARD_W, CARD_H, border_color, bg_color());
 
     let name = move_type::get_intent_name(&attack);
     ctx.print(x_start + 1, y_start + 1, name);
@@ -307,7 +307,8 @@ fn draw_card_combined(
     );
 
     let y_stats = y_start + 5;
-    let (power_str, speed_str, guard_str) = format_roll_bonuses(rolls, incoming);
+    let (power_str, speed_str, guard_str) =
+        format_roll_bonuses(intents.rolls, intents.incoming_went_first, incoming);
     ctx.print(x_start + 3 - (power_str.len() as i32), y_stats, power_str);
     ctx.print(x_start + 6 - (speed_str.len() as i32), y_stats, speed_str);
     ctx.print(x_start + 9 - (guard_str.len() as i32), y_stats, guard_str);
@@ -504,7 +505,7 @@ pub fn draw_sidebar(ecs: &World, ctx: &mut Rltk) {
         // change symbol color if attacking
         let symbol_color;
         if attack.is_some() {
-            symbol_color = RGB::named(rltk::GREEN);
+            symbol_color = attack_highlight_color();
         } else {
             symbol_color = RGB::named(rltk::WHITE);
         }
@@ -524,8 +525,8 @@ pub fn draw_sidebar(ecs: &World, ctx: &mut Rltk) {
             ctx.set(
                 x + i + 2,
                 y,
-                RGB::named(rltk::RED),
-                RGB::named(rltk::BLACK),
+                hp_main_color(),
+                bg_color(),
                 rltk::to_cp437('o'),
             );
         }
@@ -534,8 +535,8 @@ pub fn draw_sidebar(ecs: &World, ctx: &mut Rltk) {
             ctx.set(
                 x + i + 2,
                 y,
-                RGB::named(rltk::DARKRED),
-                RGB::named(rltk::BLACK),
+                hp_alt_color(),
+                bg_color(),
                 rltk::to_cp437('o'),
             );
         }
@@ -578,9 +579,9 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
 
     let x = 0;
     let y = CONSOLE_HEIGHT - 1;
-    let icon_color = RGB::named(rltk::GOLD);
-    let bg_color = RGB::named(rltk::BLACK);
-    let inactive_color = RGB::named(rltk::GREY);
+    let icon_color = text_highlight_color();
+    let bg_color = bg_color();
+    let inactive_color = text_inactive_color();
 
     let is_reaction = {
         let can_act = ecs.read_storage::<super::CanActFlag>();
@@ -683,13 +684,7 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
             // restart
             ctx.print_color(x, y, icon_color, bg_color, "r");
             ctx.print(x + 1, y, "estart");
-            ctx.print_color(
-                CONSOLE_WIDTH - 6,
-                y,
-                RGB::named(rltk::RED),
-                bg_color,
-                " DEAD",
-            );
+            ctx.print_color(CONSOLE_WIDTH - 6, y, text_dead_color(), bg_color, " DEAD");
         }
         RunState::HitPause { .. } => {
             ctx.print_color(CONSOLE_WIDTH - 6, y, inactive_color, bg_color, " WAIT");
@@ -714,13 +709,13 @@ fn draw_movement_controls(ctx: &mut Rltk, x: i32, y: i32, fg: RGB, bg: RGB, inac
 }
 
 pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u32) {
-    let selected_color = RGB::named(rltk::GOLD);
-    let bg_color = RGB::named(rltk::BLACK);
+    let selected_color = select_highlight_color();
+    let bg_color = bg_color();
 
     ctx.set(
         0,
         2 * index + 1,
-        RGB::named(rltk::GOLD),
+        text_highlight_color(),
         bg_color,
         rltk::to_cp437('>'),
     );

@@ -2,6 +2,8 @@ use crate::ParticleRequest;
 use rltk::{Algorithm2D, Point};
 use specs::prelude::*;
 
+const PARTICLE_HIT_LIFETIME: f32 = 600.0;
+
 #[derive(PartialEq, Copy, Clone)]
 pub enum EventType {
     Damage { amount: i32 },
@@ -34,7 +36,7 @@ pub struct DamageResolver {
 impl EventResolver for DamageResolver {
     fn resolve(&self, world: &mut World, _source: Option<Entity>, targets: Vec<Point>) {
         for pos in targets.iter() {
-            super::add_particle_event(*pos, rltk::RGB::named(rltk::RED), 600.0);
+            super::add_particle_event(*pos, crate::particle_hit_color(), PARTICLE_HIT_LIFETIME);
         }
 
         let affected = super::get_affected_entities(world, &targets);
@@ -77,7 +79,7 @@ pub struct PushResolver {
 impl EventResolver for PushResolver {
     fn resolve(&self, world: &mut World, _source: Option<Entity>, targets: Vec<Point>) {
         for pos in targets.iter() {
-            super::add_particle_event(*pos, rltk::RGB::named(rltk::RED), 600.0);
+            super::add_particle_event(*pos, crate::particle_hit_color(), PARTICLE_HIT_LIFETIME);
         }
 
         let affected = super::get_affected_entities(world, &targets);

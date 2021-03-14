@@ -1,5 +1,5 @@
 use super::{CardLifetime, ParticleLifetime, Position, Renderable};
-use rltk::{FontCharType, Point, Rltk, RGB};
+use rltk::{FontCharType, Point, Rltk};
 use specs::prelude::*;
 
 pub fn cleanup_particles(ecs: &mut World, ctx: &Rltk) {
@@ -36,7 +36,7 @@ fn update_lifetimes(ecs: &mut World, ctx: &Rltk) -> Vec<Entity> {
 #[derive(PartialEq, Copy, Clone)]
 pub struct ParticleRequest {
     pub position: Point,
-    pub color: RGB,
+    pub color: rltk::RGB,
     pub symbol: FontCharType,
     pub lifetime: f32,
 }
@@ -104,7 +104,7 @@ impl<'a> System<'a> for ParticleSpawnSystem {
                     Renderable {
                         symbol: request.symbol,
                         fg: request.color,
-                        bg: rltk::RGB::named(rltk::BLACK),
+                        bg: crate::bg_color(),
                     },
                 )
                 .expect("Failed to insert Renderable for particle");

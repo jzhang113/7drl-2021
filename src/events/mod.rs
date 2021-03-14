@@ -263,8 +263,7 @@ fn process_event(ecs: &mut World, event: Event) {
                     {
                         // reset rolls, since there's no other attack
                         let mut intents = ecs.fetch_mut::<crate::IntentData>();
-                        intents.hidden = false;
-                        intents.rolls = (0, 0, 0, 0, false);
+                        intents.reset();
                     }
 
                     event
@@ -363,6 +362,11 @@ fn process_event(ecs: &mut World, event: Event) {
                                 _ => false,
                             };
 
+                            {
+                                let mut intents = ecs.fetch_mut::<crate::IntentData>();
+                                intents.defender_was_interrupted = can_interrupt;
+                            }
+
                             if !can_interrupt {
                                 second_event.resolver.resolve(
                                     ecs,
@@ -397,7 +401,7 @@ fn compare_event_speed(ecs: &mut World, attack_event: &Event, react_event: &Even
     intents.hidden = false;
     intents.rolls.0 = atk_speed_roll;
     intents.rolls.1 = def_speed_roll;
-    intents.rolls.4 = atk_speed >= def_speed;
+    intents.incoming_went_first = atk_speed >= def_speed;
 
     atk_speed - def_speed
 }

@@ -7,6 +7,7 @@ rltk::embedded_resource!(ICONS, "../resources/custom_icons.png");
 use rltk::{GameState, Rltk, RGB};
 use specs::prelude::*;
 
+mod colors;
 mod components;
 mod deck;
 mod events;
@@ -25,6 +26,7 @@ mod sys_particle;
 mod sys_turn;
 mod sys_visibility;
 
+pub use colors::*;
 pub use components::*;
 pub use events::*;
 pub use map::{Map, TileType};
@@ -59,11 +61,24 @@ pub struct State {
     attack_modifier: Option<AttackType>,
 }
 
+pub type IntentRolls = (i32, i32, i32, i32);
+
 pub struct IntentData {
     pub hidden: bool,
+    pub incoming_went_first: bool,
+    pub defender_was_interrupted: bool,
     pub prev_incoming_intent: Option<AttackIntent>,
     pub prev_outgoing_intent: Option<AttackIntent>,
-    pub rolls: (i32, i32, i32, i32, bool),
+    pub rolls: IntentRolls,
+}
+
+impl IntentData {
+    pub fn reset(&mut self) {
+        self.hidden = false;
+        self.incoming_went_first = false;
+        self.defender_was_interrupted = false;
+        self.rolls = (0, 0, 0, 0);
+    }
 }
 
 impl State {
@@ -126,9 +141,11 @@ impl State {
         // TODO: there really has to be a better way to maintain this info, but here we are
         let data = IntentData {
             hidden: true,
+            incoming_went_first: false,
+            defender_was_interrupted: false,
             prev_incoming_intent: None,
             prev_outgoing_intent: None,
-            rolls: (0, 0, 0, 0, false),
+            rolls: (0, 0, 0, 0),
         };
         self.ecs.insert(data);
     }

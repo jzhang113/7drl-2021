@@ -227,7 +227,7 @@ fn handle_keys(
                 }
             }
             VirtualKeyCode::V => RunState::ViewEnemy { index: 0 },
-            VirtualKeyCode::Space => {
+            VirtualKeyCode::Space | VirtualKeyCode::Return | VirtualKeyCode::NumpadEnter => {
                 if !is_reaction {
                     let mut deck = gs.ecs.fetch_mut::<crate::deck::Deck>();
                     deck.draw();
@@ -274,8 +274,8 @@ pub fn ranged_target(
         ctx.print_color(
             crate::gui::MAP_X,
             crate::gui::MAP_Y - 1,
-            rltk::RGB::named(rltk::GOLD),
-            rltk::RGB::named(rltk::BLACK),
+            crate::header_message_color(),
+            crate::bg_color(),
             "Confirm use",
         );
     } else {
@@ -290,7 +290,7 @@ pub fn ranged_target(
                     ctx.set_bg(
                         crate::gui::MAP_X + idx.x,
                         crate::gui::MAP_Y + idx.y,
-                        rltk::RGB::named(rltk::BLUE),
+                        crate::tiles_in_range_color(),
                     );
                     available_cells.push(idx);
                 }
@@ -304,9 +304,9 @@ pub fn ranged_target(
 
         let cursor_color;
         if valid_target {
-            cursor_color = rltk::RGB::named(rltk::CYAN);
+            cursor_color = crate::valid_cursor_color();
         } else {
-            cursor_color = rltk::RGB::named(rltk::RED);
+            cursor_color = crate::invalid_cursor_color();
         }
         ctx.set_bg(
             crate::gui::MAP_X + gs.cursor.x,
@@ -319,16 +319,16 @@ pub fn ranged_target(
             ctx.print_color(
                 crate::gui::MAP_X,
                 crate::gui::MAP_Y - 1,
-                rltk::RGB::named(rltk::GOLD),
-                rltk::RGB::named(rltk::BLACK),
+                crate::header_message_color(),
+                crate::bg_color(),
                 "Select Target",
             );
         } else {
             ctx.print_color(
                 crate::gui::MAP_X,
                 crate::gui::MAP_Y - 1,
-                rltk::RGB::named(rltk::DARKGOLDENROD),
-                rltk::RGB::named(rltk::BLACK),
+                crate::header_err_color(),
+                crate::bg_color(),
                 "Invalid Target",
             );
         }
