@@ -118,6 +118,10 @@ pub fn build_mook(ecs: &mut World, point: Point) -> Entity {
         .with(Moveset {
             moves: vec![AttackType::Punch],
         })
+        .with(AiState {
+            status: Behavior::Wander,
+            tracking: None,
+        })
         .build()
 }
 // #endregion

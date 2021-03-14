@@ -106,3 +106,9 @@ pub struct AttackInProgress;
 pub struct BlockAttack {
     pub block_amount: u32,
 }
+
+#[derive(Component)]
+pub struct AiState {
+    pub status: crate::Behavior,
+    pub tracking: Option<rltk::Point>,
+}

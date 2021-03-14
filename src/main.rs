@@ -29,6 +29,7 @@ pub use components::*;
 pub use events::*;
 pub use map::{Map, TileType};
 pub use move_type::*;
+pub use sys_ai::Behavior;
 pub use sys_particle::{CardRequest, ParticleBuilder, ParticleRequest};
 
 #[derive(PartialEq, Copy, Clone)]
@@ -84,6 +85,7 @@ impl State {
 
         self.ecs.register::<AttackInProgress>();
         self.ecs.register::<BlockAttack>();
+        self.ecs.register::<AiState>();
     }
 
     fn new_game(&mut self) {
