@@ -665,6 +665,18 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
             ctx.print_color(escape_section_x, y, icon_color, bg_color, "[ESC]");
             ctx.print(escape_section_x + 6, y, "cancel");
         }
+        RunState::Dead => {
+            // restart
+            ctx.print_color(x, y, icon_color, bg_color, "r");
+            ctx.print(x + 1, y, "estart");
+            ctx.print_color(
+                CONSOLE_WIDTH - 6,
+                y,
+                RGB::named(rltk::RED),
+                bg_color,
+                " DEAD",
+            );
+        }
         _ => {}
     }
 
@@ -672,16 +684,15 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
 }
 
 fn draw_movement_controls(ctx: &mut Rltk, x: i32, y: i32, fg: RGB, bg: RGB, inactive: bool) {
-    let move_section_x = x;
-    ctx.set(move_section_x + 1, y, fg, bg, 27);
-    ctx.set(move_section_x + 2, y, fg, bg, 25);
-    ctx.set(move_section_x + 3, y, fg, bg, 24);
-    ctx.set(move_section_x + 4, y, fg, bg, 26);
+    ctx.set(x + 1, y, fg, bg, 27);
+    ctx.set(x + 2, y, fg, bg, 25);
+    ctx.set(x + 3, y, fg, bg, 24);
+    ctx.set(x + 4, y, fg, bg, 26);
 
     if inactive {
-        ctx.print_color(move_section_x + 6, y, fg, bg, "move");
+        ctx.print_color(x + 6, y, fg, bg, "move");
     } else {
-        ctx.print(move_section_x + 6, y, "move");
+        ctx.print(x + 6, y, "move");
     }
 }
 

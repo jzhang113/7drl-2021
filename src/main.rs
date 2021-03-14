@@ -43,6 +43,7 @@ pub enum RunState {
     },
     ViewCard,
     Running,
+    Dead,
 }
 
 pub struct State {
@@ -62,6 +63,78 @@ pub struct IntentData {
 }
 
 impl State {
+    fn register_components(&mut self) {
+        self.ecs.register::<Position>();
+        self.ecs.register::<Renderable>();
+        self.ecs.register::<Player>();
+        self.ecs.register::<Viewshed>();
+        self.ecs.register::<CanActFlag>();
+        self.ecs.register::<CanReactFlag>();
+        self.ecs.register::<Schedulable>();
+        self.ecs.register::<ParticleLifetime>();
+        self.ecs.register::<CardLifetime>();
+        self.ecs.register::<BlocksTile>();
+        self.ecs.register::<Viewable>();
+
+        self.ecs.register::<Health>();
+        self.ecs.register::<DeathTrigger>();
+        self.ecs.register::<AttackIntent>();
+        self.ecs.register::<MoveIntent>();
+        self.ecs.register::<Moveset>();
+        self.ecs.register::<AttackInProgress>();
+    }
+
+    fn new_game(&mut self) {
+        self.register_components();
+
+        self.ecs.insert(RunState::Running);
+        self.ecs.insert(sys_particle::ParticleBuilder::new());
+
+        let mut rng = rltk::RandomNumberGenerator::new();
+        let mut map = map::build_rogue_map(gui::MAP_W, gui::MAP_H, &mut rng);
+        let player_pos = map.rooms[0].center();
+        let mut spawner =
+            spawner::Spawner::new(&mut self.ecs, &mut map.blocked_tiles, &mut rng, gui::MAP_W);
+
+        for room in map.rooms.iter().skip(1) {
+            spawner.build(&room, 0, 4, spawner::build_mook);
+            spawner.build(&room, 0, 3, spawner::build_barrel);
+        }
+        self.ecs.insert(map);
+
+        let log = gamelog::GameLog {
+            entries: vec!["Hello world!".to_string()],
+        };
+        self.ecs.insert(log);
+
+        let player = spawner::build_player(&mut self.ecs, player_pos);
+        self.ecs.insert(player);
+
+        let mut deck = deck::Deck::new(vec![
+            AttackType::Super,
+            AttackType::Super,
+            AttackType::Quick,
+            AttackType::Punch,
+            AttackType::Punch,
+            AttackType::Push,
+            AttackType::Sweep,
+            AttackType::Stun,
+        ]);
+        deck.draw();
+        deck.draw();
+        deck.draw();
+        self.ecs.insert(deck);
+        self.ecs.insert(rng);
+        // TODO: there really has to be a better way to maintain this info, but here we are
+        let data = IntentData {
+            hidden: true,
+            prev_incoming_intent: None,
+            prev_outgoing_intent: None,
+            rolls: (0, 0, 0, 0, false),
+        };
+        self.ecs.insert(data);
+    }
+
     fn run_systems(&mut self) -> RunState {
         self.tick += 1;
 
@@ -202,6 +275,21 @@ impl GameState for State {
                     next_status = *self.ecs.fetch::<RunState>();
                 }
             }
+            RunState::Dead => {
+                gui::update_controls_text(&self.ecs, ctx, &next_status);
+
+                match ctx.key {
+                    None => {}
+                    Some(key) => {
+                        if key == rltk::VirtualKeyCode::R {
+                            let new_world = World::new();
+                            self.ecs = new_world;
+                            self.new_game();
+                            next_status = RunState::Running;
+                        }
+                    }
+                }
+            }
         }
 
         let mut status_writer = self.ecs.write_resource::<RunState>();
@@ -232,76 +320,8 @@ fn main() -> rltk::BError {
         tab_index: 0,
         attack_modifier: None,
     };
-    gs.ecs.register::<Position>();
-    gs.ecs.register::<Renderable>();
-    gs.ecs.register::<Player>();
-    gs.ecs.register::<Viewshed>();
-    gs.ecs.register::<CanActFlag>();
-    gs.ecs.register::<CanReactFlag>();
-    gs.ecs.register::<Schedulable>();
-    gs.ecs.register::<ParticleLifetime>();
-    gs.ecs.register::<CardLifetime>();
-    gs.ecs.register::<BlocksTile>();
-    gs.ecs.register::<Viewable>();
 
-    gs.ecs.register::<Health>();
-    gs.ecs.register::<DeathTrigger>();
-    gs.ecs.register::<AttackIntent>();
-    gs.ecs.register::<MoveIntent>();
-    gs.ecs.register::<Moveset>();
-    gs.ecs.register::<AttackInProgress>();
-
-    gs.ecs.insert(RunState::Running);
-    gs.ecs.insert(sys_particle::ParticleBuilder::new());
-
-    let mut rng = rltk::RandomNumberGenerator::new();
-    let mut map = map::build_rogue_map(gui::MAP_W, gui::MAP_H, &mut rng);
-    let player_pos = map.rooms[0].center();
-
-    let mut spawner =
-        spawner::Spawner::new(&mut gs.ecs, &mut map.blocked_tiles, &mut rng, gui::MAP_W);
-
-    for room in map.rooms.iter().skip(1) {
-        spawner.build(&room, 0, 4, spawner::build_mook);
-        spawner.build(&room, 0, 3, spawner::build_barrel);
-    }
-
-    gs.ecs.insert(map);
-
-    let log = gamelog::GameLog {
-        entries: vec!["Hello world!".to_string()],
-    };
-    gs.ecs.insert(log);
-
-    let player = spawner::build_player(&mut gs.ecs, player_pos);
-    gs.ecs.insert(player);
-
-    let mut deck = deck::Deck::new(vec![
-        AttackType::Super,
-        AttackType::Super,
-        AttackType::Quick,
-        AttackType::Punch,
-        AttackType::Punch,
-        AttackType::Push,
-        AttackType::Sweep,
-        AttackType::Stun,
-    ]);
-    deck.draw();
-    deck.draw();
-    deck.draw();
-
-    gs.ecs.insert(deck);
-
-    gs.ecs.insert(rng);
-
-    // TODO: there really has to be a better way to maintain this info, but here we are
-    let data = IntentData {
-        hidden: true,
-        prev_incoming_intent: None,
-        prev_outgoing_intent: None,
-        rolls: (0, 0, 0, 0, false),
-    };
-    gs.ecs.insert(data);
+    gs.new_game();
 
     rltk::main_loop(context, gs)
 }
