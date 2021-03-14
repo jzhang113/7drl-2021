@@ -68,6 +68,11 @@ fn select_card(
     // if we are counter attacking, only allow moves that can hit
     // unselect the card if we end up quitting
     if is_reaction {
+        if crate::move_type::get_attack_timing(&attack_type) == crate::AttackTiming::Slow {
+            deck.selected = -1;
+            return RunState::AwaitingInput;
+        }
+
         match reaction_target {
             None => {
                 deck.selected = -1;

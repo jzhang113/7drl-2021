@@ -10,6 +10,12 @@ pub enum AttackType {
     Quick,
 }
 
+#[derive(PartialEq, Copy, Clone)]
+pub enum AttackTiming {
+    Slow,
+    Fast,
+}
+
 // check if an attack is can be executed
 // this returns the tile that will hit the target
 pub fn is_attack_valid(
@@ -136,4 +142,14 @@ pub fn get_attack_name(attack_type: &AttackType) -> String {
     };
 
     name.to_string()
+}
+
+pub fn get_attack_timing(attack_type: &AttackType) -> AttackTiming {
+    match attack_type {
+        AttackType::Sweep => AttackTiming::Fast,
+        AttackType::Punch => AttackTiming::Fast,
+        AttackType::Super => AttackTiming::Slow,
+        AttackType::Stun => AttackTiming::Fast,
+        AttackType::Quick => AttackTiming::Slow,
+    }
 }

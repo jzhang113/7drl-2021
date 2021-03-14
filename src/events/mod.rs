@@ -212,13 +212,22 @@ fn process_event(ecs: &mut World, event: Event) {
             };
 
             match stack_event {
-                None => event
-                    .resolver
-                    .resolve(ecs, event.source, event.target_tiles.to_vec()),
+                None => {
+                    {
+                        // reset rolls, since there's no other attack
+                        let mut intents = ecs.fetch_mut::<crate::IntentData>();
+                        intents.hidden = false;
+                        intents.rolls = (0, 0, 0, 0, false);
+                    }
+
+                    event
+                        .resolver
+                        .resolve(ecs, event.source, event.target_tiles.to_vec());
+                }
                 Some(stack_event) => match stack_event.attack_intent {
                     None => {
-                        // replace the stack event if we're not using it
                         {
+                            // replace the stack event if we're not using it
                             STACK
                                 .lock()
                                 .expect("Failed to lock STACK")
@@ -257,7 +266,6 @@ fn process_event(ecs: &mut World, event: Event) {
                             (atk_speed, def_speed, s3, s4)
                         };
 
-                        let atk;
                         let atk_event;
                         let def;
                         let def_event;
@@ -265,7 +273,6 @@ fn process_event(ecs: &mut World, event: Event) {
                         let stun_amount;
 
                         if atk_speed >= def_speed {
-                            atk = event_intent;
                             atk_event = event;
                             def = stack_intent;
                             def_event = stack_event;
@@ -273,7 +280,6 @@ fn process_event(ecs: &mut World, event: Event) {
                             stun_amount = atk_speed - def_speed;
                             println!("attacker wins the speed roll");
                         } else {
-                            atk = stack_intent;
                             atk_event = stack_event;
                             def = event_intent;
                             def_event = event;

@@ -28,6 +28,7 @@ struct AttackData {
     power: i32,
     speed: i32,
     guard: i32,
+    timing: crate::AttackTiming,
 }
 
 pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
@@ -155,9 +156,10 @@ pub fn draw_intents(ecs: &World, ctx: &mut Rltk) {
                 power: crate::move_type::get_intent_power(&incoming),
                 speed: crate::move_type::get_intent_speed(&incoming),
                 guard: crate::move_type::get_intent_guard(&incoming),
+                timing: crate::move_type::get_attack_timing(&incoming.main),
             };
 
-            draw_card(ctx, data, 3, 14, RGB::named(rltk::WHITE));
+            draw_card(ctx, data, 3, 14, Some(RGB::named(rltk::WHITE)), false);
 
             let x_start = 3;
             let y_stats = 19;
@@ -176,9 +178,10 @@ pub fn draw_intents(ecs: &World, ctx: &mut Rltk) {
             power: crate::move_type::get_intent_power(&outgoing),
             speed: crate::move_type::get_intent_speed(&outgoing),
             guard: crate::move_type::get_intent_guard(&outgoing),
+            timing: crate::move_type::get_attack_timing(&outgoing.main),
         };
 
-        draw_card(ctx, data, 3, 33, RGB::named(rltk::WHITE));
+        draw_card(ctx, data, 3, 33, Some(RGB::named(rltk::WHITE)), false);
         let x_start = 3;
         let y_stats = 38;
 
@@ -237,18 +240,35 @@ fn draw_card_hidden(ctx: &mut Rltk, x_start: i32, y_start: i32, fore_color: RGB)
     ctx.print(x_start + 1, y_start + 1, "???");
 }
 
-fn draw_card(ctx: &mut Rltk, attack: AttackData, x_start: i32, y_start: i32, fore_color: RGB) {
+fn draw_card(
+    ctx: &mut Rltk,
+    attack: AttackData,
+    x_start: i32,
+    y_start: i32,
+    fore_color: Option<RGB>,
+    addl_info: bool,
+) {
+    let border_color = if let Some(color) = fore_color {
+        color
+    } else {
+        match attack.timing {
+            crate::AttackTiming::Slow => RGB::from_hex("#4E5166").unwrap(),
+            crate::AttackTiming::Fast => RGB::from_hex("#AFE0CE").unwrap(),
+        }
+    };
+
     ctx.draw_box(
         x_start,
         y_start,
         CARD_W,
         CARD_H,
-        fore_color,
+        border_color,
         RGB::named(rltk::BLACK),
     );
 
     ctx.print(x_start + 1, y_start + 1, attack.name);
 
+    // #region stats
     let y_stats = y_start + 3;
 
     // stat values
@@ -283,6 +303,18 @@ fn draw_card(ctx: &mut Rltk, attack: AttackData, x_start: i32, y_start: i32, for
         0,
     );
     ctx.set_active_console(1);
+    // #endregion
+
+    if !addl_info {
+        return;
+    }
+
+    let y_timing = y_start + 5;
+    let timing_str = match attack.timing {
+        crate::AttackTiming::Slow => "SLOW",
+        crate::AttackTiming::Fast => "FAST",
+    };
+    ctx.print(x_start + 1, y_timing, timing_str);
 }
 
 pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
@@ -390,25 +422,24 @@ pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
     let start_x = (CONSOLE_WIDTH - hand_size * (CARD_W + 1)) / 2;
 
     for (i, card) in deck.hand.iter().enumerate() {
-        let index = i as i32;
-        let fore_color;
-        if index == deck.selected {
-            fore_color = RGB::named(rltk::GOLD);
-        } else {
-            fore_color = RGB::from_hex("#AFE0CE").unwrap();
-        }
-
         let xpos = start_x + (CARD_W + 1) * (i as i32);
         let ypos = CARD_Y;
+
+        let selected_color = if i as i32 == deck.selected {
+            Some(RGB::named(rltk::GOLD))
+        } else {
+            None
+        };
 
         let data = AttackData {
             name: format!("{}) {}", i + 1, crate::move_type::get_attack_name(card)),
             power: crate::move_type::get_attack_power(card),
             speed: crate::move_type::get_attack_speed(card),
             guard: crate::move_type::get_attack_guard(card),
+            timing: crate::move_type::get_attack_timing(&card),
         };
 
-        draw_card(ctx, data, xpos, ypos, fore_color);
+        draw_card(ctx, data, xpos, ypos, selected_color, true);
     }
 }
 
@@ -540,6 +571,12 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
             .expect("uh-oh, we're waiting for input but the player can't act")
             .is_reaction
     };
+
+    if is_reaction {
+        ctx.print(CONSOLE_WIDTH - 6, y, "REACT");
+    } else {
+        ctx.print_color(CONSOLE_WIDTH - 5, y, inactive_color, bg_color, "MAIN");
+    }
 
     match *status {
         RunState::AwaitingInput => {
