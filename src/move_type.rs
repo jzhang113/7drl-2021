@@ -8,12 +8,19 @@ pub enum AttackType {
     Super,
     Stun,
     Quick,
+    Push,
 }
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum AttackTiming {
     Slow,
     Fast,
+}
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum AttackTrait {
+    Damage,
+    Knockback,
 }
 
 // check if an attack is can be executed
@@ -82,6 +89,18 @@ pub fn get_intent_guard(intent: &AttackIntent) -> i32 {
     get_intent_stat(intent, get_attack_guard, |x, y| x + y)
 }
 
+pub fn get_intent_traits(intent: &AttackIntent) -> Vec<AttackTrait> {
+    get_intent_stat(intent, get_attack_traits, |mut x, y| {
+        for item in y {
+            if !x.contains(&item) {
+                x.push(item);
+            }
+        }
+
+        x
+    })
+}
+
 pub fn get_attack_range(attack_type: &AttackType) -> RangeType {
     match attack_type {
         AttackType::Sweep => RangeType::Single,
@@ -89,6 +108,7 @@ pub fn get_attack_range(attack_type: &AttackType) -> RangeType {
         AttackType::Super => RangeType::Empty,
         AttackType::Stun => RangeType::Square { size: 1 },
         AttackType::Quick => RangeType::Empty,
+        AttackType::Push => RangeType::Square { size: 1 },
     }
 }
 
@@ -99,6 +119,7 @@ pub fn get_attack_power(attack_type: &AttackType) -> i32 {
         AttackType::Super => 2,
         AttackType::Stun => 0,
         AttackType::Quick => -1,
+        AttackType::Push => 0,
     }
 }
 
@@ -109,6 +130,7 @@ pub fn get_attack_shape(attack_type: &AttackType) -> RangeType {
         AttackType::Super => RangeType::Empty,
         AttackType::Stun => RangeType::Single,
         AttackType::Quick => RangeType::Empty,
+        AttackType::Push => RangeType::Single,
     }
 }
 
@@ -119,6 +141,7 @@ pub fn get_attack_speed(attack_type: &AttackType) -> i32 {
         AttackType::Super => -2,
         AttackType::Stun => 2,
         AttackType::Quick => 4,
+        AttackType::Push => 0,
     }
 }
 
@@ -129,6 +152,7 @@ pub fn get_attack_guard(attack_type: &AttackType) -> i32 {
         AttackType::Super => 1,
         AttackType::Stun => 0,
         AttackType::Quick => -2,
+        AttackType::Push => 0,
     }
 }
 
@@ -139,6 +163,7 @@ pub fn get_attack_name(attack_type: &AttackType) -> String {
         AttackType::Super => "super",
         AttackType::Stun => "stun",
         AttackType::Quick => "quick",
+        AttackType::Push => "push",
     };
 
     name.to_string()
@@ -151,5 +176,17 @@ pub fn get_attack_timing(attack_type: &AttackType) -> AttackTiming {
         AttackType::Super => AttackTiming::Slow,
         AttackType::Stun => AttackTiming::Fast,
         AttackType::Quick => AttackTiming::Slow,
+        AttackType::Push => AttackTiming::Slow,
+    }
+}
+
+pub fn get_attack_traits(attack_type: &AttackType) -> Vec<AttackTrait> {
+    match attack_type {
+        AttackType::Sweep => vec![AttackTrait::Damage],
+        AttackType::Punch => vec![AttackTrait::Damage],
+        AttackType::Super => vec![AttackTrait::Damage],
+        AttackType::Stun => vec![AttackTrait::Damage],
+        AttackType::Quick => vec![],
+        AttackType::Push => vec![AttackTrait::Knockback],
     }
 }

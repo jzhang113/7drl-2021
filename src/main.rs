@@ -282,7 +282,7 @@ fn main() -> rltk::BError {
         AttackType::Quick,
         AttackType::Punch,
         AttackType::Punch,
-        AttackType::Punch,
+        AttackType::Push,
         AttackType::Sweep,
         AttackType::Stun,
     ]);
