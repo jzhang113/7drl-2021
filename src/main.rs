@@ -127,6 +127,10 @@ impl GameState for State {
             RunState::AwaitingInput => {
                 gui::update_controls_text(&self.ecs, ctx, &next_status);
                 next_status = player::player_input(self, ctx);
+
+                if next_status == RunState::Running {
+                    player::end_turn_cleanup(&mut self.ecs);
+                }
             }
             RunState::Targetting {
                 attack_type,
@@ -272,7 +276,7 @@ fn main() -> rltk::BError {
     let player = spawner::build_player(&mut gs.ecs, player_pos);
     gs.ecs.insert(player);
 
-    let deck = deck::Deck::new(vec![
+    let mut deck = deck::Deck::new(vec![
         AttackType::Super,
         AttackType::Super,
         AttackType::Quick,
@@ -282,6 +286,10 @@ fn main() -> rltk::BError {
         AttackType::Sweep,
         AttackType::Stun,
     ]);
+    deck.draw();
+    deck.draw();
+    deck.draw();
+
     gs.ecs.insert(deck);
 
     gs.ecs.insert(rng);

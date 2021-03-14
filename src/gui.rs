@@ -559,16 +559,16 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
             let space_section_x = 25;
             let space_action_str;
             if is_reaction {
-                space_action_str = "brace";
+                space_action_str = "block";
             } else {
-                space_action_str = "recover";
+                space_action_str = "draw card";
             }
 
             ctx.print_color(space_section_x, y, icon_color, bg_color, "[SPACE]");
             ctx.print(space_section_x + 8, y, space_action_str);
 
             // card section
-            let card_section_x = 43;
+            let card_section_x = 45;
             ctx.print_color(card_section_x, y, icon_color, bg_color, "[1-7]");
             ctx.print(card_section_x + 6, y, "use card");
         }
@@ -594,12 +594,12 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
             ctx.print(space_section_x + 8, y, "confirm");
 
             // escape
-            let escape_section_x = 43;
+            let escape_section_x = 45;
             ctx.print_color(escape_section_x, y, icon_color, bg_color, "[ESC]");
             ctx.print(escape_section_x + 6, y, "cancel");
 
             // tab target
-            let tab_section_x = 58;
+            let tab_section_x = 60;
             if ignore_targetting {
                 ctx.print_color(tab_section_x, y, inactive_color, bg_color, "[TAB]");
                 ctx.print_color(

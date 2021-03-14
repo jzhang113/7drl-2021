@@ -65,7 +65,7 @@ pub fn get_intent_name(intent: &AttackIntent) -> String {
 }
 
 pub fn get_intent_power(intent: &AttackIntent) -> i32 {
-    get_intent_stat(intent, get_attack_power, |x, y| x + y)
+    get_intent_stat(intent, get_attack_power, |x, y| std::cmp::max(x + y, 0))
 }
 
 pub fn get_intent_speed(intent: &AttackIntent) -> i32 {

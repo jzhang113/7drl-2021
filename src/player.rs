@@ -156,15 +156,7 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
         (player_can_act.is_reaction, player_can_act.reaction_target)
     };
 
-    let result = handle_keys(gs, ctx, is_reaction, target);
-
-    if result == RunState::Running {
-        update_hand(&mut gs.ecs);
-        update_reaction_state(&mut gs.ecs, is_reaction);
-        clear_lingering_cards(&mut gs.ecs);
-    }
-
-    result
+    handle_keys(gs, ctx, is_reaction, target)
 }
 
 pub fn end_turn_cleanup(ecs: &mut World) {
@@ -179,11 +171,6 @@ pub fn end_turn_cleanup(ecs: &mut World) {
 
     update_reaction_state(ecs, is_reaction);
     clear_lingering_cards(ecs);
-}
-
-fn update_hand(ecs: &mut World) {
-    let mut deck = ecs.fetch_mut::<crate::deck::Deck>();
-    deck.draw();
 }
 
 // if we are in a reaction, remove the CanReact flag
@@ -250,6 +237,11 @@ fn handle_keys(
             VirtualKeyCode::Space => {
                 let mut intents = gs.ecs.fetch_mut::<crate::IntentData>();
                 intents.hidden = false;
+
+                if !is_reaction {
+                    let mut deck = gs.ecs.fetch_mut::<crate::deck::Deck>();
+                    deck.draw();
+                }
 
                 RunState::Running
             }
