@@ -10,6 +10,7 @@ pub enum AttackType {
     Quick,
     Push,
     Dodge,
+    Ponder,
 }
 
 #[derive(PartialEq, Copy, Clone)]
@@ -23,6 +24,8 @@ pub enum AttackTrait {
     Damage,
     Knockback { amount: i32 },
     Movement,
+    Modifier,
+    Draw { amount: i32 },
 }
 
 // check if an attack is can be executed
@@ -112,6 +115,7 @@ pub fn get_attack_range(attack_type: &AttackType) -> RangeType {
         AttackType::Quick => RangeType::Empty,
         AttackType::Push => RangeType::Square { size: 1 },
         AttackType::Dodge => RangeType::Square { size: 2 },
+        AttackType::Ponder => RangeType::Empty,
     }
 }
 
@@ -124,6 +128,7 @@ pub fn get_attack_power(attack_type: &AttackType) -> i32 {
         AttackType::Quick => -1,
         AttackType::Push => 0,
         AttackType::Dodge => 0,
+        AttackType::Ponder => 0,
     }
 }
 
@@ -136,6 +141,7 @@ pub fn get_attack_shape(attack_type: &AttackType) -> RangeType {
         AttackType::Quick => RangeType::Empty,
         AttackType::Push => RangeType::Single,
         AttackType::Dodge => RangeType::Single,
+        AttackType::Ponder => RangeType::Empty,
     }
 }
 
@@ -148,6 +154,7 @@ pub fn get_attack_speed(attack_type: &AttackType) -> i32 {
         AttackType::Quick => 4,
         AttackType::Push => 0,
         AttackType::Dodge => 2,
+        AttackType::Ponder => 0,
     }
 }
 
@@ -160,6 +167,7 @@ pub fn get_attack_guard(attack_type: &AttackType) -> i32 {
         AttackType::Quick => -2,
         AttackType::Push => 0,
         AttackType::Dodge => -2,
+        AttackType::Ponder => 0,
     }
 }
 
@@ -172,6 +180,7 @@ pub fn get_attack_name(attack_type: &AttackType) -> String {
         AttackType::Quick => "quick",
         AttackType::Push => "push",
         AttackType::Dodge => "dodge",
+        AttackType::Ponder => "ponder",
     };
 
     name.to_string()
@@ -186,6 +195,7 @@ pub fn get_attack_timing(attack_type: &AttackType) -> AttackTiming {
         AttackType::Quick => AttackTiming::Slow,
         AttackType::Push => AttackTiming::Slow,
         AttackType::Dodge => AttackTiming::Fast,
+        AttackType::Ponder => AttackTiming::Slow,
     }
 }
 
@@ -193,10 +203,11 @@ pub fn get_attack_traits(attack_type: &AttackType) -> Vec<AttackTrait> {
     match attack_type {
         AttackType::Sweep => vec![AttackTrait::Damage],
         AttackType::Punch => vec![AttackTrait::Damage],
-        AttackType::Super => vec![AttackTrait::Damage],
+        AttackType::Super => vec![AttackTrait::Damage, AttackTrait::Modifier],
         AttackType::Stun => vec![AttackTrait::Damage],
-        AttackType::Quick => vec![],
+        AttackType::Quick => vec![AttackTrait::Modifier],
         AttackType::Push => vec![AttackTrait::Knockback { amount: 2 }],
         AttackType::Dodge => vec![AttackTrait::Movement],
+        AttackType::Ponder => vec![AttackTrait::Draw { amount: 2 }],
     }
 }

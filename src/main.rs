@@ -117,17 +117,7 @@ impl State {
         let player = spawner::build_player(&mut self.ecs, player_pos);
         self.ecs.insert(player);
 
-        let mut deck = deck::Deck::new(vec![
-            AttackType::Super,
-            AttackType::Super,
-            AttackType::Quick,
-            AttackType::Punch,
-            AttackType::Punch,
-            AttackType::Push,
-            AttackType::Sweep,
-            AttackType::Stun,
-            AttackType::Dodge,
-        ]);
+        let mut deck = deck::Deck::new_starting_hand(&mut rng);
         deck.draw();
         deck.draw();
         deck.draw();
@@ -242,11 +232,13 @@ impl GameState for State {
                             let mut deck = self.ecs.fetch_mut::<deck::Deck>();
                             deck.discard_selected();
 
-                            let shape = crate::move_type::get_attack_shape(&attack_type);
-                            if shape == crate::RangeType::Empty {
+                            let att_traits = crate::move_type::get_attack_traits(&attack_type);
+                            if att_traits.contains(&AttackTrait::Modifier) {
                                 self.attack_modifier = Some(attack_type);
                             } else {
-                                let target = result.1.unwrap();
+                                // we should generally have a target at this point
+                                // if we don't have a point, assume its because we won't need one later
+                                let target = result.1.unwrap_or(rltk::Point::zero());
                                 let intent = crate::move_type::get_attack_intent(
                                     &attack_type,
                                     target,

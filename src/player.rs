@@ -103,7 +103,6 @@ fn select_card(
 
         // empty-shaped moves are not targetted
         if shape == crate::RangeType::Empty {
-            // TODO: should this skip targetting
             ignore_targetting = true;
         }
 

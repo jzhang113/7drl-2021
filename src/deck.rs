@@ -21,6 +21,23 @@ impl Deck {
         }
     }
 
+    pub fn new_starting_hand(rng: &mut rltk::RandomNumberGenerator) -> Self {
+        // base cards you start with
+        let mut cards = vec![AttackType::Punch, AttackType::Punch, AttackType::Dodge];
+
+        // plus two random cards
+        for _ in 0..2 {
+            let new_card = attack_type_table(rng);
+            cards.push(new_card);
+        }
+
+        Self::new(cards)
+    }
+
+    pub fn add(&mut self, card: AttackType) {
+        self.cards.push(card);
+    }
+
     pub fn draw(&mut self) {
         if self.hand.len() >= HAND_LIMIT {
             return;
@@ -61,5 +78,21 @@ impl Deck {
         }
 
         self.cards.shuffle(&mut thread_rng());
+    }
+}
+
+fn attack_type_table(rng: &mut rltk::RandomNumberGenerator) -> AttackType {
+    let roll = rng.range(0, 8);
+
+    match roll {
+        0 => AttackType::Sweep,
+        1 => AttackType::Super,
+        2 => AttackType::Stun,
+        3 => AttackType::Quick,
+        4 => AttackType::Push,
+        5 => AttackType::Dodge,
+        6 => AttackType::Dodge,
+        7 => AttackType::Ponder,
+        _ => AttackType::Punch,
     }
 }

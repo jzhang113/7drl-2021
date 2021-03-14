@@ -254,15 +254,19 @@ fn draw_card_hand(
 
     ctx.print(x_start + 1, y_timing, timing_str);
     let mut y_trait_line = y_start + 7;
+    let y_type_line = y_start + CARD_H - 1;
+
     for att_trait in move_type::get_attack_traits(attack) {
         match att_trait {
-            crate::AttackTrait::Damage => {}
+            crate::AttackTrait::Damage => ctx.print(x_start + 1, y_type_line, "Attack "),
+            crate::AttackTrait::Modifier => ctx.print(x_start + 1, y_type_line, "Modifier"),
+            crate::AttackTrait::Movement => ctx.print(x_start + 1, y_type_line, "Movement"),
             crate::AttackTrait::Knockback { amount } => {
                 ctx.print(x_start + 1, y_trait_line, format!("PUSH {}", amount - 1));
                 y_trait_line += 2;
             }
-            crate::AttackTrait::Movement { .. } => {
-                ctx.print(x_start + 1, y_trait_line, format!("MOVE"));
+            crate::AttackTrait::Draw { amount } => {
+                ctx.print(x_start + 1, y_trait_line, format!("DRAW {}", amount));
                 y_trait_line += 2;
             }
         }
