@@ -33,6 +33,7 @@ struct Event {
 
 pub fn add_event(
     event_type: &EventType,
+    intent: Option<AttackIntent>,
     source: Option<Entity>,
     range: &RangeType,
     loc: Point,
@@ -41,7 +42,7 @@ pub fn add_event(
     let mut stack = STACK.lock().expect("Failed to lock STACK");
     let event = Event {
         event_type: *event_type,
-        attack_intent: None,
+        attack_intent: intent,
         resolver: event_type::get_resolver(event_type),
         source,
         target_tiles: Arc::new(range_type::resolve_range_at(range, loc)),
@@ -70,6 +71,24 @@ pub fn add_damage_event(intent: &AttackIntent, source: Option<Entity>, invokes_r
     };
 
     stack.push(event);
+}
+
+pub fn add_particle_event(position: Point, color: rltk::RGB, lifetime: f32) {
+    add_event(
+        &EventType::ParticleSpawn {
+            request: crate::ParticleRequest {
+                position,
+                color,
+                symbol: rltk::to_cp437('█'),
+                lifetime,
+            },
+        },
+        None,
+        None,
+        &crate::RangeType::Empty,
+        Point::zero(),
+        false,
+    );
 }
 
 pub fn process_stack(ecs: &mut World) -> crate::RunState {
@@ -260,6 +279,7 @@ fn process_event(ecs: &mut World, event: Event) {
                             stack_source == *player
                         };
 
+                        // If the stack event isn't from the player, the player didn't act, so there's no reaction to process
                         if !stack_source_is_player {
                             {
                                 // replace the stack event if we're not using it
@@ -292,85 +312,94 @@ fn process_event(ecs: &mut World, event: Event) {
                                 .resolve(ecs, event.source, event.target_tiles.to_vec())
                         }
                         Some(stack_intent) => {
-                            let (atk_speed, def_speed, def_guard_roll, atk_power_roll) = {
-                                let mut rng = ecs.fetch_mut::<rltk::RandomNumberGenerator>();
-                                let atk_speed_roll = rng.range(0, SPEED_ROLL_RANGE);
-                                let def_speed_roll = rng.range(0, SPEED_ROLL_RANGE);
-                                let s3 = rng.range(0, GUARD_ROLL_RANGE);
-                                let s4 = rng.range(0, GUARD_ROLL_RANGE);
+                            let speed_diff = compare_event_speed(ecs, &event, &stack_event);
 
-                                // compare speed to determine which attack resolves first
-                                let atk_speed = move_type::get_intent_speed(&event_intent)
-                                    + atk_speed_roll
-                                    + ATK_SPD_BONUS;
-                                let def_speed =
-                                    move_type::get_intent_speed(&stack_intent) + def_speed_roll;
-
-                                let mut intents = ecs.fetch_mut::<crate::IntentData>();
-                                intents.hidden = false;
-                                intents.rolls = (
-                                    atk_speed_roll,
-                                    def_speed_roll,
-                                    s3,
-                                    s4,
-                                    atk_speed >= def_speed,
-                                );
-
-                                (atk_speed, def_speed, s3, s4)
+                            let (first_event, second_event) = if speed_diff >= 0 {
+                                println!("attacker wins the speed roll");
+                                (event, stack_event)
+                            } else {
+                                println!("defender wins the speed roll");
+                                (stack_event, event)
                             };
 
-                            let atk_event;
-                            let def;
-                            let def_event;
-                            let def_bonus_active;
-                            let stun_amount;
+                            first_event.resolver.resolve(
+                                ecs,
+                                first_event.source,
+                                first_event.target_tiles.to_vec(),
+                            );
 
-                            if atk_speed >= def_speed {
-                                atk_event = event;
-                                def = stack_intent;
-                                def_event = stack_event;
-                                def_bonus_active = true;
-                                stun_amount = atk_speed - def_speed;
-                                println!("attacker wins the speed roll");
+                            let can_interrupt = match first_event.event_type {
+                                EventType::Damage { .. } => {
+                                    let (def_guard_roll, atk_power_roll) = {
+                                        let mut rng =
+                                            ecs.fetch_mut::<rltk::RandomNumberGenerator>();
+                                        let s3 = rng.range(0, GUARD_ROLL_RANGE);
+                                        let s4 = rng.range(0, GUARD_ROLL_RANGE);
+
+                                        let mut intents = ecs.fetch_mut::<crate::IntentData>();
+                                        intents.rolls.2 = s3;
+                                        intents.rolls.3 = s4;
+
+                                        (s3, s4)
+                                    };
+
+                                    let (def, def_bonus_active) = if speed_diff >= 0 {
+                                        (stack_intent, true)
+                                    } else {
+                                        (event_intent, false)
+                                    };
+
+                                    // compare power vs guard to determine if the defender can counter
+                                    // only the defender can gain the guard bonus
+                                    let mut def_guard =
+                                        move_type::get_intent_guard(&def) + def_guard_roll;
+                                    if def_bonus_active {
+                                        def_guard += DEF_GUARD_BONUS;
+                                    }
+                                    let stun_power = speed_diff.abs() + atk_power_roll;
+
+                                    stun_power > def_guard
+                                }
+                                _ => false,
+                            };
+
+                            if !can_interrupt {
+                                second_event.resolver.resolve(
+                                    ecs,
+                                    second_event.source,
+                                    second_event.target_tiles.to_vec(),
+                                );
                             } else {
-                                atk_event = stack_event;
-                                def = event_intent;
-                                def_event = event;
-                                def_bonus_active = false;
-                                stun_amount = def_speed - atk_speed;
-                                println!("defender wins the speed roll");
-                            }
-
-                            atk_event.resolver.resolve(
-                                ecs,
-                                atk_event.source,
-                                atk_event.target_tiles.to_vec(),
-                            );
-
-                            // compare power vs guard to determine if the defender can counter
-                            // only the defender can gain the guard bonus
-                            let mut def_guard = move_type::get_intent_guard(&def) + def_guard_roll;
-                            if def_bonus_active {
-                                def_guard += DEF_GUARD_BONUS;
-                            }
-                            let stun_power = stun_amount + atk_power_roll;
-
-                            if stun_power > def_guard {
                                 println!("defender is stunned!");
-                                return;
                             }
-
-                            def_event.resolver.resolve(
-                                ecs,
-                                def_event.source,
-                                def_event.target_tiles.to_vec(),
-                            );
                         }
                     }
                 }
             }
         }
     }
+}
+
+fn compare_event_speed(ecs: &mut World, attack_event: &Event, react_event: &Event) -> i32 {
+    let mut rng = ecs.fetch_mut::<rltk::RandomNumberGenerator>();
+    let atk_speed_roll = rng.range(0, SPEED_ROLL_RANGE);
+    let def_speed_roll = rng.range(0, SPEED_ROLL_RANGE);
+
+    // compare speed to determine which attack resolves first
+    // also just unwrap the events here, we already pattern matched on them
+    let atk_speed = move_type::get_intent_speed(&attack_event.attack_intent.unwrap())
+        + atk_speed_roll
+        + ATK_SPD_BONUS;
+    let def_speed =
+        move_type::get_intent_speed(&react_event.attack_intent.unwrap()) + def_speed_roll;
+
+    let mut intents = ecs.fetch_mut::<crate::IntentData>();
+    intents.hidden = false;
+    intents.rolls.0 = atk_speed_roll;
+    intents.rolls.1 = def_speed_roll;
+    intents.rolls.4 = atk_speed >= def_speed;
+
+    atk_speed - def_speed
 }
 
 fn add_card_to_stack(

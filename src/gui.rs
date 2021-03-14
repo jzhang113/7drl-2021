@@ -261,6 +261,10 @@ fn draw_card_hand(
                 ctx.print(x_start + 1, y_trait_line, format!("PUSH {}", amount - 1));
                 y_trait_line += 2;
             }
+            crate::AttackTrait::Movement { .. } => {
+                ctx.print(x_start + 1, y_trait_line, format!("MOVE"));
+                y_trait_line += 2;
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ use specs::prelude::*;
 pub enum EventType {
     Damage { amount: i32 },
     Push { source_pos: Point, amount: i32 },
+    Movement,
     ParticleSpawn { request: ParticleRequest },
     // ShowCard { request: CardRequest, offset: i32 },
 }
@@ -17,6 +18,7 @@ pub fn get_resolver(event: &EventType) -> Box<dyn EventResolver + Send> {
             source_pos: *source_pos,
             amount: *amount,
         }),
+        EventType::Movement => Box::new(MovementResolver),
         EventType::ParticleSpawn { request } => Box::new(ParticleResolver { request: *request }),
     }
 }
@@ -32,20 +34,7 @@ pub struct DamageResolver {
 impl EventResolver for DamageResolver {
     fn resolve(&self, world: &mut World, _source: Option<Entity>, targets: Vec<Point>) {
         for pos in targets.iter() {
-            super::add_event(
-                &EventType::ParticleSpawn {
-                    request: ParticleRequest {
-                        position: *pos,
-                        color: rltk::RGB::named(rltk::RED),
-                        symbol: rltk::to_cp437('█'),
-                        lifetime: 600.0,
-                    },
-                },
-                None,
-                &crate::RangeType::Empty,
-                Point::zero(),
-                false,
-            );
+            super::add_particle_event(*pos, rltk::RGB::named(rltk::RED), 600.0);
         }
 
         let affected = super::get_affected_entities(world, &targets);
@@ -88,25 +77,12 @@ pub struct PushResolver {
 impl EventResolver for PushResolver {
     fn resolve(&self, world: &mut World, _source: Option<Entity>, targets: Vec<Point>) {
         for pos in targets.iter() {
-            super::add_event(
-                &EventType::ParticleSpawn {
-                    request: ParticleRequest {
-                        position: *pos,
-                        color: rltk::RGB::named(rltk::RED),
-                        symbol: rltk::to_cp437('█'),
-                        lifetime: 600.0,
-                    },
-                },
-                None,
-                &crate::RangeType::Empty,
-                Point::zero(),
-                false,
-            );
+            super::add_particle_event(*pos, rltk::RGB::named(rltk::RED), 600.0);
         }
 
         let affected = super::get_affected_entities(world, &targets);
         let mut positions = world.write_storage::<crate::Position>();
-        let map = world.fetch::<crate::Map>();
+        let mut map = world.fetch_mut::<crate::Map>();
 
         for e_aff in affected.iter() {
             let affected = positions.get_mut(*e_aff);
@@ -135,8 +111,46 @@ impl EventResolver for PushResolver {
                     next_y = possible.y;
                 }
 
+                // fix indexing
+                let affected_index = map.get_index(affected.x, affected.y);
+                let next_index = map.get_index(next_x, next_y);
+                map.blocked_tiles[affected_index] = false;
+                map.blocked_tiles[next_index] = true;
+
                 affected.x = next_x;
                 affected.y = next_y;
+            }
+        }
+    }
+}
+
+pub struct MovementResolver;
+
+impl EventResolver for MovementResolver {
+    fn resolve(&self, world: &mut World, source: Option<Entity>, targets: Vec<Point>) {
+        if let Some(source) = source {
+            let mut positions = world.write_storage::<crate::Position>();
+            let mut map = world.fetch_mut::<crate::Map>();
+
+            if let Some(source_pos) = positions.get_mut(source) {
+                // if we have more than one target position to move to, pick at random
+                if targets.len() > 0 {
+                    let target = targets[0];
+
+                    // confirm target is valid
+                    let target_index = map.point2d_to_index(target);
+                    if !map.in_bounds(target) || map.blocked_tiles[target_index] {
+                        return;
+                    }
+
+                    // fix indexing
+                    let source_index = map.get_index(source_pos.x, source_pos.y);
+                    map.blocked_tiles[source_index] = false;
+                    map.blocked_tiles[target_index] = true;
+
+                    source_pos.x = target.x;
+                    source_pos.y = target.y;
+                }
             }
         }
     }

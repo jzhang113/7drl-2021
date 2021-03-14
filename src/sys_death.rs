@@ -22,7 +22,14 @@ impl<'a> System<'a> for DeathSystem {
         {
             if health.current <= 0 {
                 if let Some(effect) = effect {
-                    crate::add_event(&effect.event, None, &effect.range, pos.as_point(), true);
+                    crate::add_event(
+                        &effect.event,
+                        None,
+                        None,
+                        &effect.range,
+                        pos.as_point(),
+                        true,
+                    );
                 }
 
                 if ent != *player {

@@ -26,11 +26,23 @@ impl<'a> System<'a> for AttackSystem {
                                 amount,
                             };
                             let range = &move_type::get_attack_shape(&intent.main);
-                            crate::add_event(&event, Some(ent), range, intent.loc, false);
+                            crate::add_event(
+                                &event,
+                                Some(*intent),
+                                Some(ent),
+                                range,
+                                intent.loc,
+                                false,
+                            );
                         }
                     }
                     crate::AttackTrait::Damage => {
                         crate::add_damage_event(intent, Some(ent), true);
+                    }
+                    crate::AttackTrait::Movement => {
+                        let event = crate::EventType::Movement;
+                        let range = &move_type::get_attack_shape(&intent.main);
+                        crate::add_event(&event, Some(*intent), Some(ent), range, intent.loc, false)
                     }
                 }
             }

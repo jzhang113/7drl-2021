@@ -126,6 +126,7 @@ impl State {
             AttackType::Push,
             AttackType::Sweep,
             AttackType::Stun,
+            AttackType::Dodge,
         ]);
         deck.draw();
         deck.draw();
