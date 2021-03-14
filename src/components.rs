@@ -89,7 +89,7 @@ pub struct MoveIntent {
 
 #[derive(Component)]
 pub struct Moveset {
-    pub moves: Vec<crate::AttackType>,
+    pub moves: Vec<(crate::AttackType, f32)>,
 }
 
 #[derive(Component)]

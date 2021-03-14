@@ -261,6 +261,7 @@ fn draw_card_hand(
             crate::AttackTrait::Damage => ctx.print(x_start + 1, y_type_line, "Attack "),
             crate::AttackTrait::Modifier => ctx.print(x_start + 1, y_type_line, "Modifier"),
             crate::AttackTrait::Movement => ctx.print(x_start + 1, y_type_line, "Movement"),
+            crate::AttackTrait::Equipment => ctx.print(x_start + 1, y_type_line, "Equipment"),
             crate::AttackTrait::Knockback { amount } => {
                 ctx.print(x_start + 1, y_trait_line, format!("PUSH {}", amount - 1));
                 y_trait_line += 2;

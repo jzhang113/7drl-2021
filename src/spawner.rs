@@ -116,7 +116,7 @@ pub fn build_mook(ecs: &mut World, point: Point) -> Entity {
         .with(BlocksTile)
         .with(Health { current: 5, max: 5 })
         .with(Moveset {
-            moves: vec![AttackType::Punch],
+            moves: vec![(AttackType::Haymaker, 0.25), (AttackType::Punch, 0.75)],
         })
         .with(AiState {
             status: Behavior::Wander,

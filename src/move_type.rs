@@ -11,6 +11,8 @@ pub enum AttackType {
     Push,
     Dodge,
     Ponder,
+    // enemy specific attacks
+    Haymaker,
 }
 
 #[derive(PartialEq, Copy, Clone)]
@@ -25,6 +27,7 @@ pub enum AttackTrait {
     Knockback { amount: i32 },
     Movement,
     Modifier,
+    Equipment,
     Draw { amount: i32 },
 }
 
@@ -116,6 +119,7 @@ pub fn get_attack_range(attack_type: &AttackType) -> RangeType {
         AttackType::Push => RangeType::Square { size: 1 },
         AttackType::Dodge => RangeType::Square { size: 2 },
         AttackType::Ponder => RangeType::Empty,
+        AttackType::Haymaker => RangeType::Square { size: 1 },
     }
 }
 
@@ -129,6 +133,7 @@ pub fn get_attack_power(attack_type: &AttackType) -> i32 {
         AttackType::Push => 0,
         AttackType::Dodge => 0,
         AttackType::Ponder => 0,
+        AttackType::Haymaker => 3,
     }
 }
 
@@ -142,6 +147,7 @@ pub fn get_attack_shape(attack_type: &AttackType) -> RangeType {
         AttackType::Push => RangeType::Single,
         AttackType::Dodge => RangeType::Single,
         AttackType::Ponder => RangeType::Empty,
+        AttackType::Haymaker => RangeType::Single,
     }
 }
 
@@ -155,6 +161,7 @@ pub fn get_attack_speed(attack_type: &AttackType) -> i32 {
         AttackType::Push => 0,
         AttackType::Dodge => 2,
         AttackType::Ponder => 0,
+        AttackType::Haymaker => -4,
     }
 }
 
@@ -168,6 +175,7 @@ pub fn get_attack_guard(attack_type: &AttackType) -> i32 {
         AttackType::Push => 0,
         AttackType::Dodge => -2,
         AttackType::Ponder => 0,
+        AttackType::Haymaker => 2,
     }
 }
 
@@ -181,6 +189,7 @@ pub fn get_attack_name(attack_type: &AttackType) -> String {
         AttackType::Push => "push",
         AttackType::Dodge => "dodge",
         AttackType::Ponder => "ponder",
+        AttackType::Haymaker => "haymaker",
     };
 
     name.to_string()
@@ -196,6 +205,7 @@ pub fn get_attack_timing(attack_type: &AttackType) -> AttackTiming {
         AttackType::Push => AttackTiming::Slow,
         AttackType::Dodge => AttackTiming::Fast,
         AttackType::Ponder => AttackTiming::Slow,
+        AttackType::Haymaker => AttackTiming::Slow,
     }
 }
 
@@ -209,5 +219,6 @@ pub fn get_attack_traits(attack_type: &AttackType) -> Vec<AttackTrait> {
         AttackType::Push => vec![AttackTrait::Knockback { amount: 2 }],
         AttackType::Dodge => vec![AttackTrait::Movement],
         AttackType::Ponder => vec![AttackTrait::Draw { amount: 2 }],
+        AttackType::Haymaker => vec![AttackTrait::Damage],
     }
 }

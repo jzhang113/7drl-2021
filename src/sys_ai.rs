@@ -92,9 +92,20 @@ impl<'a> System<'a> for AiSystem {
                         // track the player's current position
                         state.tracking = Some(player_point);
 
-                        for potential_attack in moveset.moves.iter() {
+                        let rolled_prob: f32 = rng.rand();
+                        let mut cumul_prob: f32 = 0.0;
+
+                        // TODO: smarter attack selection
+                        // this is fine when all of the attacks have similar attack ranges
+                        // however, we might run into cases where we are in range to attack, but we decided to use an attack thats not valid
+                        for (potential_attack, chance) in moveset.moves.iter() {
+                            cumul_prob += chance;
+                            if rolled_prob > cumul_prob {
+                                continue;
+                            }
+
                             if crate::move_type::is_attack_valid(
-                                potential_attack,
+                                &potential_attack,
                                 orig_point,
                                 player_point,
                             )
@@ -114,7 +125,7 @@ impl<'a> System<'a> for AiSystem {
 
                                 match movement {
                                     None => {
-                                        // we shouldn't really be here, just give up chasing I guess
+                                        // we can't move towards the player for some reason, so give up chasing
                                         state.status = Behavior::Wander;
                                         state.tracking = None;
                                     }
@@ -126,8 +137,11 @@ impl<'a> System<'a> for AiSystem {
                                 }
                             }
                             Some(attack) => {
-                                let intent =
-                                    crate::move_type::get_attack_intent(attack, player_point, None);
+                                let intent = crate::move_type::get_attack_intent(
+                                    &attack,
+                                    player_point,
+                                    None,
+                                );
 
                                 attacks
                                     .insert(ent, intent)

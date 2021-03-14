@@ -57,6 +57,9 @@ impl<'a> System<'a> for AttackSystem {
                     crate::AttackTrait::Modifier => {
                         // this is just a marker, modified attacks don't do anything special (yet?)
                     }
+                    crate::AttackTrait::Equipment => {
+                        // this is another marker
+                    }
                 }
             }
         }
