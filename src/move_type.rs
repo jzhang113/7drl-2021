@@ -20,7 +20,7 @@ pub enum AttackTiming {
 #[derive(PartialEq, Copy, Clone)]
 pub enum AttackTrait {
     Damage,
-    Knockback,
+    Knockback { amount: i32 },
 }
 
 // check if an attack is can be executed
@@ -187,6 +187,6 @@ pub fn get_attack_traits(attack_type: &AttackType) -> Vec<AttackTrait> {
         AttackType::Super => vec![AttackTrait::Damage],
         AttackType::Stun => vec![AttackTrait::Damage],
         AttackType::Quick => vec![],
-        AttackType::Push => vec![AttackTrait::Knockback],
+        AttackType::Push => vec![AttackTrait::Knockback { amount: 2 }],
     }
 }

@@ -23,13 +23,7 @@ const SHOW_MAP: bool = false;
 const SHOW_REND: bool = false;
 // #endregion
 
-struct AttackData {
-    name: String,
-    power: i32,
-    speed: i32,
-    guard: i32,
-    timing: crate::AttackTiming,
-}
+type Rolls = (i32, i32, i32, i32, bool);
 
 pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
     ctx.draw_box(
@@ -151,51 +145,17 @@ pub fn draw_intents(ecs: &World, ctx: &mut Rltk) {
         if intents.hidden {
             draw_card_hidden(ctx, 3, 14, RGB::named(rltk::WHITE));
         } else {
-            let data = AttackData {
-                name: crate::move_type::get_intent_name(&incoming),
-                power: crate::move_type::get_intent_power(&incoming),
-                speed: crate::move_type::get_intent_speed(&incoming),
-                guard: crate::move_type::get_intent_guard(&incoming),
-                timing: crate::move_type::get_attack_timing(&incoming.main),
-            };
-
-            draw_card(ctx, data, 3, 14, Some(RGB::named(rltk::WHITE)), false);
-
-            let x_start = 3;
-            let y_stats = 19;
-
-            let (power_str, speed_str, guard_str) = format_roll_bonuses(intents.rolls, true);
-            ctx.print(x_start + 3 - (power_str.len() as i32), y_stats, power_str);
-            ctx.print(x_start + 6 - (speed_str.len() as i32), y_stats, speed_str);
-            ctx.print(x_start + 9 - (guard_str.len() as i32), y_stats, guard_str);
+            draw_card_combined(ctx, incoming, 3, 14, intents.rolls, true);
         }
     }
 
     ctx.print(4, 32, "OUTGOING");
     if let Some(outgoing) = intents.prev_outgoing_intent {
-        let data = AttackData {
-            name: crate::move_type::get_intent_name(&outgoing),
-            power: crate::move_type::get_intent_power(&outgoing),
-            speed: crate::move_type::get_intent_speed(&outgoing),
-            guard: crate::move_type::get_intent_guard(&outgoing),
-            timing: crate::move_type::get_attack_timing(&outgoing.main),
-        };
-
-        draw_card(ctx, data, 3, 33, Some(RGB::named(rltk::WHITE)), false);
-        let x_start = 3;
-        let y_stats = 38;
-
-        let (power_str, speed_str, guard_str) = format_roll_bonuses(intents.rolls, false);
-        ctx.print(x_start + 3 - (power_str.len() as i32), y_stats, power_str);
-        ctx.print(x_start + 6 - (speed_str.len() as i32), y_stats, speed_str);
-        ctx.print(x_start + 9 - (guard_str.len() as i32), y_stats, guard_str);
+        draw_card_combined(ctx, outgoing, 3, 33, intents.rolls, false);
     }
 }
 
-fn format_roll_bonuses<'a>(
-    rolls: (i32, i32, i32, i32, bool),
-    incoming: bool,
-) -> (String, String, String) {
+fn format_roll_bonuses<'a>(rolls: Rolls, incoming: bool) -> (String, String, String) {
     let (s1, s2, s3, s4, incoming_first) = rolls;
 
     let incoming_strings = {
@@ -240,18 +200,19 @@ fn draw_card_hidden(ctx: &mut Rltk, x_start: i32, y_start: i32, fore_color: RGB)
     ctx.print(x_start + 1, y_start + 1, "???");
 }
 
-fn draw_card(
+fn draw_card_hand(
     ctx: &mut Rltk,
-    attack: AttackData,
+    attack: &AttackType,
     x_start: i32,
     y_start: i32,
-    fore_color: Option<RGB>,
-    addl_info: bool,
+    index: i32,
+    selected: bool,
 ) {
-    let border_color = if let Some(color) = fore_color {
-        color
+    let timing = crate::move_type::get_attack_timing(&attack);
+    let border_color = if selected {
+        RGB::named(rltk::GOLD)
     } else {
-        match attack.timing {
+        match timing {
             crate::AttackTiming::Slow => RGB::from_hex("#4E5166").unwrap(),
             crate::AttackTiming::Fast => RGB::from_hex("#AFE0CE").unwrap(),
         }
@@ -266,55 +227,113 @@ fn draw_card(
         RGB::named(rltk::BLACK),
     );
 
-    ctx.print(x_start + 1, y_start + 1, attack.name);
+    let name = format!(
+        "{}) {}",
+        index + 1,
+        crate::move_type::get_attack_name(attack)
+    );
+    ctx.print(x_start + 1, y_start + 1, name);
 
-    // #region stats
-    let y_stats = y_start + 3;
+    let power_str = format!("{}", move_type::get_attack_power(attack));
+    let speed_str = format!("{}", move_type::get_attack_speed(attack));
+    let guard_str = format!("{}", move_type::get_attack_guard(attack));
+    draw_card_stats(
+        ctx,
+        x_start,
+        y_start + 3,
+        &power_str,
+        &speed_str,
+        &guard_str,
+    );
 
-    // stat values
-    let power_str = format!("{}", attack.power);
-    let speed_str = format!("{}", attack.speed);
-    let guard_str = format!("{}", attack.guard);
+    let y_timing = y_start + 5;
+    let timing_str = match timing {
+        crate::AttackTiming::Slow => "SLOW",
+        crate::AttackTiming::Fast => "FAST",
+    };
+
+    ctx.print(x_start + 1, y_timing, timing_str);
+    let mut y_trait_line = y_start + 7;
+    for att_trait in move_type::get_attack_traits(attack) {
+        match att_trait {
+            crate::AttackTrait::Damage => {}
+            crate::AttackTrait::Knockback { amount } => {
+                ctx.print(x_start + 1, y_trait_line, format!("PUSH {}", amount - 1));
+                y_trait_line += 2;
+            }
+        }
+    }
+}
+
+fn draw_card_combined(
+    ctx: &mut Rltk,
+    attack: AttackIntent,
+    x_start: i32,
+    y_start: i32,
+    rolls: Rolls,
+    incoming: bool,
+) {
+    ctx.draw_box(
+        x_start,
+        y_start,
+        CARD_W,
+        CARD_H,
+        RGB::named(rltk::WHITE),
+        RGB::named(rltk::BLACK),
+    );
+
+    let name = move_type::get_intent_name(&attack);
+    ctx.print(x_start + 1, y_start + 1, name);
+
+    let power_str = format!("{}", move_type::get_intent_power(&attack));
+    let speed_str = format!("{}", move_type::get_intent_speed(&attack));
+    let guard_str = format!("{}", move_type::get_intent_guard(&attack));
+    draw_card_stats(
+        ctx,
+        x_start,
+        y_start + 3,
+        &power_str,
+        &speed_str,
+        &guard_str,
+    );
+
+    let y_stats = y_start + 5;
+    let (power_str, speed_str, guard_str) = format_roll_bonuses(rolls, incoming);
     ctx.print(x_start + 3 - (power_str.len() as i32), y_stats, power_str);
     ctx.print(x_start + 6 - (speed_str.len() as i32), y_stats, speed_str);
     ctx.print(x_start + 9 - (guard_str.len() as i32), y_stats, guard_str);
+}
+
+fn draw_card_stats(
+    ctx: &mut Rltk,
+    x: i32,
+    y: i32,
+    power_str: &str,
+    speed_str: &str,
+    guard_str: &str,
+) {
+    ctx.print(x + 3 - (power_str.len() as i32), y, power_str);
+    ctx.print(x + 6 - (speed_str.len() as i32), y, speed_str);
+    ctx.print(x + 9 - (guard_str.len() as i32), y, guard_str);
 
     // stat icons
     ctx.set_active_console(2);
+    ctx.set(x + 3, y, RGB::named(rltk::RED), RGB::named(rltk::BLACK), 1);
     ctx.set(
-        x_start + 3,
-        y_stats,
-        RGB::named(rltk::RED),
-        RGB::named(rltk::BLACK),
-        1,
-    );
-    ctx.set(
-        x_start + 6,
-        y_stats,
+        x + 6,
+        y,
         RGB::named(rltk::YELLOW),
         RGB::named(rltk::BLACK),
         2,
     );
     ctx.set(
-        x_start + 9,
-        y_stats,
+        x + 9,
+        y,
         RGB::named(rltk::LIGHTBLUE),
         RGB::named(rltk::BLACK),
         0,
     );
     ctx.set_active_console(1);
-    // #endregion
-
-    if !addl_info {
-        return;
-    }
-
-    let y_timing = y_start + 5;
-    let timing_str = match attack.timing {
-        crate::AttackTiming::Slow => "SLOW",
-        crate::AttackTiming::Fast => "FAST",
-    };
-    ctx.print(x_start + 1, y_timing, timing_str);
 }
 
 pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
@@ -424,22 +443,8 @@ pub fn draw_hand(ecs: &World, ctx: &mut Rltk) {
     for (i, card) in deck.hand.iter().enumerate() {
         let xpos = start_x + (CARD_W + 1) * (i as i32);
         let ypos = CARD_Y;
-
-        let selected_color = if i as i32 == deck.selected {
-            Some(RGB::named(rltk::GOLD))
-        } else {
-            None
-        };
-
-        let data = AttackData {
-            name: format!("{}) {}", i + 1, crate::move_type::get_attack_name(card)),
-            power: crate::move_type::get_attack_power(card),
-            speed: crate::move_type::get_attack_speed(card),
-            guard: crate::move_type::get_attack_guard(card),
-            timing: crate::move_type::get_attack_timing(&card),
-        };
-
-        draw_card(ctx, data, xpos, ypos, selected_color, true);
+        let index = i as i32;
+        draw_card_hand(ctx, card, xpos, ypos, index, index == deck.selected);
     }
 }
 
