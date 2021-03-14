@@ -63,11 +63,20 @@ impl EventResolver for DamageResolver {
 
         let affected = super::get_affected_entities(world, &targets);
         let mut healths = world.write_storage::<crate::Health>();
+        let mut blocks = world.write_storage::<crate::BlockAttack>();
 
         for e_aff in affected.iter() {
+            let mut damage_amount = self.amount;
+            if let Some(block) = blocks.get(*e_aff) {
+                damage_amount -= block.block_amount as i32;
+                damage_amount = std::cmp::max(damage_amount, 0);
+
+                blocks.remove(*e_aff);
+            };
+
             let affected = healths.get_mut(*e_aff);
             if let Some(mut affected) = affected {
-                affected.current -= self.amount;
+                affected.current -= damage_amount;
             }
         }
     }

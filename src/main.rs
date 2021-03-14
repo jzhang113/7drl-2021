@@ -81,7 +81,9 @@ impl State {
         self.ecs.register::<AttackIntent>();
         self.ecs.register::<MoveIntent>();
         self.ecs.register::<Moveset>();
+
         self.ecs.register::<AttackInProgress>();
+        self.ecs.register::<BlockAttack>();
     }
 
     fn new_game(&mut self) {

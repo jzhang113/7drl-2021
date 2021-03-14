@@ -246,6 +246,12 @@ fn handle_keys(
                 if !is_reaction {
                     let mut deck = gs.ecs.fetch_mut::<crate::deck::Deck>();
                     deck.draw();
+                } else {
+                    let mut blocking = gs.ecs.write_storage::<crate::BlockAttack>();
+                    let player = gs.ecs.fetch::<Entity>();
+                    blocking
+                        .insert(*player, crate::BlockAttack { block_amount: 1 })
+                        .expect("couldn't insert player block");
                 }
 
                 RunState::Running

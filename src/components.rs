@@ -101,3 +101,8 @@ pub struct Viewable {
 
 #[derive(Component)]
 pub struct AttackInProgress;
+
+#[derive(Component)]
+pub struct BlockAttack {
+    pub block_amount: u32,
+}
