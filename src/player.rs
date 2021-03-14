@@ -24,10 +24,6 @@ fn try_move_player(ecs: &mut World, dx: i32, dy: i32) -> RunState {
                 .insert(*player, new_move)
                 .expect("Failed to insert new movement from player");
 
-            let mut intents = ecs.fetch_mut::<crate::IntentData>();
-            intents.prev_incoming_intent = None;
-            intents.prev_outgoing_intent = None;
-
             return RunState::Running;
         } else if map.tiles[dest_index] != crate::TileType::Wall {
             // TODO: implement push
@@ -165,25 +161,19 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) -> RunState {
 }
 
 pub fn end_turn_cleanup(ecs: &mut World) {
-    let is_reaction = {
-        let can_act = ecs.read_storage::<super::CanActFlag>();
-        let player = ecs.fetch::<Entity>();
-        can_act
-            .get(*player)
-            .expect("player_input called, but it is not your turn")
-            .is_reaction
-    };
-
-    update_reaction_state(ecs, is_reaction);
-    clear_lingering_cards(ecs);
-}
-
-// if we are in a reaction, remove the CanReact flag
-// otherwise, we are on the main turn, so restore the flag
-fn update_reaction_state(ecs: &mut World, _is_reaction: bool) {
+    // remove can act flag
     // let player = ecs.fetch::<Entity>();
     let mut can_act = ecs.write_storage::<super::CanActFlag>();
     // let mut can_react = ecs.write_storage::<super::CanReactFlag>();
+
+    // let is_reaction = {
+    //     let can_act = ecs.read_storage::<super::CanActFlag>();
+    //     let player = ecs.fetch::<Entity>();
+    //     can_act
+    //         .get(*player)
+    //         .expect("player_input called, but it is not your turn")
+    //         .is_reaction
+    // };
 
     // if is_reaction {
     //     can_react.remove(*player);
@@ -194,9 +184,8 @@ fn update_reaction_state(ecs: &mut World, _is_reaction: bool) {
     // }
 
     can_act.clear();
-}
 
-fn clear_lingering_cards(ecs: &mut World) {
+    // clear floating cards
     let mut cards = ecs.write_storage::<super::CardLifetime>();
     cards.clear();
 }
@@ -240,9 +229,6 @@ fn handle_keys(
             }
             VirtualKeyCode::V => RunState::ViewEnemy { index: 0 },
             VirtualKeyCode::Space => {
-                let mut intents = gs.ecs.fetch_mut::<crate::IntentData>();
-                intents.hidden = false;
-
                 if !is_reaction {
                     let mut deck = gs.ecs.fetch_mut::<crate::deck::Deck>();
                     deck.draw();

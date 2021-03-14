@@ -207,6 +207,14 @@ impl GameState for State {
 
                 if next_status == RunState::Running {
                     player::end_turn_cleanup(&mut self.ecs);
+
+                    // clear out previously revealed intents
+                    // this isn't in end_turn_cleanup because we don't want to clear intents from the targetting state
+                    let mut intents = self.ecs.fetch_mut::<crate::IntentData>();
+                    if !intents.hidden {
+                        intents.prev_incoming_intent = None;
+                        intents.prev_outgoing_intent = None;
+                    }
                 }
             }
             RunState::Targetting {
