@@ -96,6 +96,7 @@ pub struct Moveset {
 pub struct Viewable {
     pub name: String,
     pub symbol: rltk::FontCharType,
+    pub description: Vec<String>,
     pub list_index: Option<u32>,
 }
 
@@ -111,4 +112,14 @@ pub struct BlockAttack {
 pub struct AiState {
     pub status: crate::Behavior,
     pub tracking: Option<rltk::Point>,
+}
+
+#[derive(Component)]
+pub struct Heal {
+    pub amount: u32,
+}
+
+#[derive(Component)]
+pub struct SkillChoice {
+    pub choices: Vec<crate::AttackType>,
 }

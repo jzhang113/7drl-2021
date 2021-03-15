@@ -1,4 +1,5 @@
 use rltk::{Algorithm2D, BaseMap, Point, Rect};
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 #[derive(PartialEq, Copy, Clone)]
@@ -13,6 +14,7 @@ pub struct Map {
     pub width: i32,
     pub height: i32,
     pub color_map: Vec<rltk::RGB>,
+    pub item_map: HashMap<usize, specs::Entity>,
     pub known_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked_tiles: Vec<bool>,
@@ -128,6 +130,16 @@ impl Map {
             self.color_map[index] = crate::map_floor_color();
         }
     }
+
+    pub fn track_item(&mut self, data: specs::Entity, point: Point) {
+        let index = self.point2d_to_index(point);
+        self.item_map.entry(index).or_insert(data);
+    }
+
+    pub fn untrack_item(&mut self, point: Point) -> Option<specs::Entity> {
+        let index = self.point2d_to_index(point);
+        self.item_map.remove(&index)
+    }
 }
 
 pub fn build_rogue_map(width: i32, height: i32, rng: &mut rltk::RandomNumberGenerator) -> Map {
@@ -138,6 +150,7 @@ pub fn build_rogue_map(width: i32, height: i32, rng: &mut rltk::RandomNumberGene
         width: width,
         height: height,
         color_map: (0..dim).map(|_| crate::map_wall_color(rng)).collect(),
+        item_map: HashMap::new(),
         known_tiles: vec![false; dim],
         visible_tiles: vec![false; dim],
         blocked_tiles: vec![false; dim],

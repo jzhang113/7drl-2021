@@ -500,50 +500,51 @@ pub fn draw_sidebar(ecs: &World, ctx: &mut Rltk) {
             continue;
         }
 
-        // change symbol color if attacking
-        let symbol_color;
-        if attack.is_some() {
-            symbol_color = attack_highlight_color();
-        } else {
-            symbol_color = RGB::named(rltk::WHITE);
-        }
-
-        ctx.set(x, y, symbol_color, RGB::named(rltk::BLACK), view.symbol);
-        ctx.set(
-            x + 1,
-            y,
-            RGB::named(rltk::WHITE),
-            RGB::named(rltk::BLACK),
-            rltk::to_cp437(':'),
-        );
         view.list_index = Some(index);
-        let curr_hp = std::cmp::max(0, health.current);
 
-        for i in 0..curr_hp {
-            ctx.set(
-                x + i + 2,
-                y,
-                hp_main_color(),
-                bg_color(),
-                rltk::to_cp437('o'),
-            );
-        }
+        if index <= 5 {
+            // change symbol color if attacking
+            let symbol_color;
+            if attack.is_some() {
+                symbol_color = attack_highlight_color();
+            } else {
+                symbol_color = RGB::named(rltk::WHITE);
+            }
 
-        for i in curr_hp..health.max {
+            ctx.set(x, y, symbol_color, RGB::named(rltk::BLACK), view.symbol);
             ctx.set(
-                x + i + 2,
+                x + 1,
                 y,
-                hp_alt_color(),
-                bg_color(),
-                rltk::to_cp437('o'),
+                RGB::named(rltk::WHITE),
+                RGB::named(rltk::BLACK),
+                rltk::to_cp437(':'),
             );
+
+            let curr_hp = std::cmp::max(0, health.current);
+
+            for i in 0..curr_hp {
+                ctx.set(
+                    x + i + 2,
+                    y,
+                    hp_main_color(),
+                    bg_color(),
+                    rltk::to_cp437('o'),
+                );
+            }
+
+            for i in curr_hp..health.max {
+                ctx.set(
+                    x + i + 2,
+                    y,
+                    hp_alt_color(),
+                    bg_color(),
+                    rltk::to_cp437('o'),
+                );
+            }
         }
 
         y += 2;
         index += 1;
-        if index > 5 {
-            break;
-        }
 
         // TODO: what to do with excess?
     }
@@ -735,7 +736,7 @@ pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u
 
     highlight_bg(ctx, &Position::as_point(pos), selected_color);
 
-    let (box_x, box_y) = position_box(ctx, x, y, 10, 10, selected_color, bg_color);
+    let (box_x, box_y) = position_box(ctx, x, y, 15, 10, selected_color, bg_color);
 
     ctx.print(box_x + 1, box_y, view.name.clone());
     ctx.print(
@@ -750,6 +751,10 @@ pub fn draw_viewable_info(ecs: &World, ctx: &mut Rltk, entity: &Entity, index: u
         ctx.print(box_x + 1, box_y + 3, "Blocking");
     } else {
         ctx.print(box_x + 1, box_y + 3, "Idle");
+    }
+
+    for (i, line) in view.description.iter().enumerate() {
+        ctx.print(box_x + 1, box_y + 5 + i as i32, line.clone());
     }
 }
 

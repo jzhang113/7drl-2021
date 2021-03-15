@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 mod event_type;
 pub mod range_type;
 
-pub use event_type::EventType;
+pub use event_type::{DropType, EventType};
 pub use range_type::*;
 
 const ATK_SPD_BONUS: i32 = 0;

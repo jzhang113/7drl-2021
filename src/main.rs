@@ -104,6 +104,8 @@ impl State {
         self.ecs.register::<AttackInProgress>();
         self.ecs.register::<BlockAttack>();
         self.ecs.register::<AiState>();
+        self.ecs.register::<Heal>();
+        self.ecs.register::<SkillChoice>();
     }
 
     fn new_game(&mut self) {
@@ -120,7 +122,17 @@ impl State {
 
         for room in map.rooms.iter().skip(1) {
             spawner.build(&room, 0, 4, spawner::build_mook);
-            spawner.build(&room, 0, 3, spawner::build_barrel);
+
+            spawner.build_variant(
+                &room,
+                5,
+                10,
+                0.2,
+                0.4,
+                spawner::build_exploding_barrel,
+                spawner::build_loot_barrel,
+                spawner::build_empty_barrel,
+            );
         }
         self.ecs.insert(map);
 

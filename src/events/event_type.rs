@@ -5,11 +5,18 @@ use specs::prelude::*;
 const PARTICLE_HIT_LIFETIME: f32 = 600.0;
 
 #[derive(PartialEq, Copy, Clone)]
+pub enum DropType {
+    Skill,
+    Health,
+}
+
+#[derive(PartialEq, Copy, Clone)]
 pub enum EventType {
     Damage { amount: i32 },
     Push { source_pos: Point, amount: i32 },
     Movement,
     ParticleSpawn { request: ParticleRequest },
+    ItemDrop { drop_type: DropType, quality: i32 },
     // ShowCard { request: CardRequest, offset: i32 },
 }
 
@@ -21,6 +28,10 @@ pub fn get_resolver(event: &EventType) -> Box<dyn EventResolver + Send> {
             amount: *amount,
         }),
         EventType::Movement => Box::new(MovementResolver),
+        EventType::ItemDrop { drop_type, quality } => Box::new(DropResolver {
+            drop_type: *drop_type,
+            quality: *quality,
+        }),
         EventType::ParticleSpawn { request } => Box::new(ParticleResolver { request: *request }),
     }
 }
@@ -154,6 +165,59 @@ impl EventResolver for MovementResolver {
                     source_pos.y = target.y;
                 }
             }
+        }
+    }
+}
+
+pub struct DropResolver {
+    drop_type: DropType,
+    quality: i32,
+}
+
+impl EventResolver for DropResolver {
+    fn resolve(&self, world: &mut World, _source: Option<Entity>, targets: Vec<Point>) {
+        // get a random open square
+        if targets.len() == 0 {
+            return;
+        }
+
+        // TODO: this is fine for now, we are only using single targets anyways
+        let drop_point = targets[0];
+
+        match self.drop_type {
+            DropType::Health => {
+                let heal_amount = {
+                    let mut rng = world.fetch_mut::<rltk::RandomNumberGenerator>();
+                    let heal_amount = rng.range(self.quality / 2, self.quality / 2 + 2);
+                    std::cmp::max(heal_amount, 1)
+                };
+
+                let heal_item = world
+                    .create_entity()
+                    .with(crate::Position {
+                        x: drop_point.x,
+                        y: drop_point.y,
+                    })
+                    .with(crate::Renderable {
+                        symbol: rltk::to_cp437('+'),
+                        fg: crate::health_color(),
+                        bg: crate::bg_color(),
+                    })
+                    .with(crate::Heal {
+                        amount: heal_amount as u32,
+                    })
+                    .with(crate::Viewable {
+                        name: "health".to_string(),
+                        symbol: rltk::to_cp437('+'),
+                        description: vec!["Packaged health, don't ask".to_string()],
+                        list_index: None,
+                    })
+                    .build();
+
+                let mut map = world.fetch_mut::<crate::Map>();
+                map.track_item(heal_item, drop_point);
+            }
+            DropType::Skill => {}
         }
     }
 }

@@ -99,3 +99,7 @@ pub fn header_err_color() -> RGB {
 pub fn particle_hit_color() -> RGB {
     rltk::RGB::named(rltk::RED)
 }
+
+pub fn health_color() -> RGB {
+    RGB::named(rltk::MAGENTA)
+}
