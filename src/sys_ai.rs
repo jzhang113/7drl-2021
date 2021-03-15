@@ -71,15 +71,17 @@ impl<'a> System<'a> for AiSystem {
                     } else {
                         // pick a random tile we can move to
                         let exits = map.get_available_exits(curr_index);
-                        let exit_index = rng.range(0, exits.len());
-                        let chosen_exit = exits[exit_index].0;
-                        let movement = MoveIntent {
-                            loc: map.index_to_point2d(chosen_exit),
-                        };
+                        if exits.len() > 0 {
+                            let exit_index = rng.range(0, exits.len());
+                            let chosen_exit = exits[exit_index].0;
+                            let movement = MoveIntent {
+                                loc: map.index_to_point2d(chosen_exit),
+                            };
 
-                        moves
-                            .insert(ent, movement)
-                            .expect("Failed to insert movement from AI");
+                            moves
+                                .insert(ent, movement)
+                                .expect("Failed to insert movement from AI");
+                        }
                     }
                 }
                 Behavior::Chase => {

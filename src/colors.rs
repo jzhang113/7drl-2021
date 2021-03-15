@@ -103,3 +103,7 @@ pub fn particle_hit_color() -> RGB {
 pub fn health_color() -> RGB {
     RGB::named(rltk::MAGENTA)
 }
+
+pub fn map_exit_color() -> RGB {
+    RGB::named(rltk::WHITE)
+}

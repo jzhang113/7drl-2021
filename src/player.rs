@@ -11,10 +11,13 @@ fn try_move_player(ecs: &mut World, dx: i32, dy: i32) -> RunState {
     let player = ecs.fetch::<Entity>();
 
     for (_player, pos) in (&players, &mut positions).join() {
-        let dest_index = map.get_index(pos.x + dx, pos.y + dy);
-
         let new_x = min(map.width, max(0, pos.x + dx));
         let new_y = min(map.height, max(0, pos.y + dy));
+        let dest_index = map.get_index(new_x, new_y);
+
+        if dest_index == map.level_exit {
+            return RunState::GenerateMap;
+        }
 
         if !map.blocked_tiles[dest_index] {
             let new_move = MoveIntent {

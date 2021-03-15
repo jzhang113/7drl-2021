@@ -1,3 +1,4 @@
+use crate::spawner;
 use rltk::{Algorithm2D, BaseMap, Point, Rect};
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -13,11 +14,13 @@ pub struct Map {
     pub rooms: Vec<Rect>,
     pub width: i32,
     pub height: i32,
+    pub depth: i32,
     pub color_map: Vec<rltk::RGB>,
     pub item_map: HashMap<usize, specs::Entity>,
     pub known_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked_tiles: Vec<bool>,
+    pub level_exit: usize,
 }
 
 impl BaseMap for Map {
@@ -142,18 +145,25 @@ impl Map {
     }
 }
 
-pub fn build_rogue_map(width: i32, height: i32, rng: &mut rltk::RandomNumberGenerator) -> Map {
+pub fn build_rogue_map(
+    width: i32,
+    height: i32,
+    depth: i32,
+    rng: &mut rltk::RandomNumberGenerator,
+) -> Map {
     let dim = (width * height).try_into().unwrap();
     let mut map = Map {
         tiles: vec![TileType::Wall; dim],
         rooms: vec![],
-        width: width,
-        height: height,
+        width,
+        height,
+        depth,
         color_map: (0..dim).map(|_| crate::map_wall_color(rng)).collect(),
         item_map: HashMap::new(),
         known_tiles: vec![false; dim],
         visible_tiles: vec![false; dim],
         blocked_tiles: vec![false; dim],
+        level_exit: 0,
     };
 
     const MAX_ROOMS: i32 = 30;
@@ -195,5 +205,39 @@ pub fn build_rogue_map(width: i32, height: i32, rng: &mut rltk::RandomNumberGene
     }
 
     map.set_blocked_tiles();
+
+    let exit_room = map.rooms.len() - 1;
+    let exit_x = rng.range(map.rooms[exit_room].x1, map.rooms[exit_room].x2);
+    let exit_y = rng.range(map.rooms[exit_room].y1, map.rooms[exit_room].y2);
+    map.level_exit = map.get_index(exit_x, exit_y);
+    println!("{}", map.level_exit);
+
+    map
+}
+
+pub fn build_level(ecs: &mut specs::World, width: i32, height: i32, depth: i32) -> Map {
+    let mut map = {
+        let mut rng = ecs.fetch_mut::<rltk::RandomNumberGenerator>();
+        build_rogue_map(width, height, depth, &mut rng)
+    };
+
+    let mut spawner = spawner::Spawner::new(ecs, &mut map.blocked_tiles, map.level_exit, width);
+
+    for room in map.rooms.iter().skip(1) {
+        let quality = depth;
+        spawner.build(&room, 0 + quality / 2, 2 + quality, spawner::build_mook);
+
+        let mut builder_ary = Vec::new();
+        builder_ary.push(
+            spawner::build_exploding_barrel
+                as for<'r> fn(&'r mut specs::World, rltk::Point, i32) -> specs::Entity,
+        );
+        builder_ary.push(spawner::build_health_barrel);
+        builder_ary.push(spawner::build_book_barrel);
+        builder_ary.push(spawner::build_empty_barrel);
+
+        spawner.build_choice(&room, 5, 10, depth, vec![0.2, 0.3, 0.1, 0.4], builder_ary);
+    }
+
     map
 }

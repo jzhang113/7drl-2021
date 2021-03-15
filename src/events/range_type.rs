@@ -19,7 +19,9 @@ pub fn resolve_range_at(range: &RangeType, center: Point) -> Vec<Point> {
         RangeType::Square { size } => {
             for x in center.x - size..=center.x + size {
                 for y in center.y - size..=center.y + size {
-                    targets.push(Point::new(x, y));
+                    if !(x == center.x && y == center.y) {
+                        targets.push(Point::new(x, y));
+                    }
                 }
             }
         }

@@ -21,13 +21,15 @@ impl Deck {
         }
     }
 
-    pub fn new_starting_hand(rng: &mut rltk::RandomNumberGenerator) -> Self {
+    pub fn new_starting_hand(ecs: &specs::World) -> Self {
+        let mut rng = ecs.fetch_mut::<rltk::RandomNumberGenerator>();
+
         // base cards you start with
         let mut cards = vec![AttackType::Punch, AttackType::Punch, AttackType::Dodge];
 
         // plus two random cards
         for _ in 0..2 {
-            let new_card = attack_type_table(rng, 0);
+            let new_card = attack_type_table(&mut rng, 0);
             cards.push(new_card);
         }
 

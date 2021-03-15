@@ -40,7 +40,7 @@ pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
 
     for (idx, tile) in map.tiles.iter().enumerate() {
         if map.known_tiles[idx] || SHOW_MAP {
-            let symbol;
+            let mut symbol;
             let mut fg = map.color_map[idx];
 
             match tile {
@@ -50,6 +50,11 @@ pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
                 TileType::Wall => {
                     symbol = rltk::to_cp437('#');
                 }
+            }
+
+            if idx == map.level_exit {
+                symbol = rltk::to_cp437('>');
+                fg = map_exit_color();
             }
 
             if !map.visible_tiles[idx] {

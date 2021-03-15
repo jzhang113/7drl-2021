@@ -53,6 +53,7 @@ pub enum RunState {
     ChooseReward {
         choices: [Option<AttackType>; 4],
     },
+    GenerateMap,
     Dead,
 }
 
@@ -119,42 +120,26 @@ impl State {
         self.ecs.insert(RunState::Running);
         self.ecs.insert(sys_particle::ParticleBuilder::new());
 
-        let mut rng = rltk::RandomNumberGenerator::new();
-        let mut map = map::build_rogue_map(gui::MAP_W, gui::MAP_H, &mut rng);
+        let rng = rltk::RandomNumberGenerator::new();
+        self.ecs.insert(rng);
+
+        let map = map::build_level(&mut self.ecs, gui::MAP_W, gui::MAP_H, 1);
         let player_pos = map.rooms[0].center();
-        let mut spawner =
-            spawner::Spawner::new(&mut self.ecs, &mut map.blocked_tiles, &mut rng, gui::MAP_W);
-
-        for room in map.rooms.iter().skip(1) {
-            spawner.build(&room, 0, 4, spawner::build_mook);
-
-            let mut builder_ary = Vec::new();
-            builder_ary.push(
-                spawner::build_exploding_barrel
-                    as for<'r> fn(&'r mut specs::World, rltk::Point) -> specs::Entity,
-            );
-            builder_ary.push(spawner::build_health_barrel);
-            builder_ary.push(spawner::build_book_barrel);
-            builder_ary.push(spawner::build_empty_barrel);
-
-            spawner.build_choice(&room, 5, 10, vec![0.2, 0.3, 0.1, 0.4], builder_ary);
-        }
         self.ecs.insert(map);
+
+        let player = spawner::build_player(&mut self.ecs, player_pos);
+        self.ecs.insert(player);
 
         let log = gamelog::GameLog {
             entries: vec!["Hello world!".to_string()],
         };
         self.ecs.insert(log);
 
-        let player = spawner::build_player(&mut self.ecs, player_pos);
-        self.ecs.insert(player);
-
-        let mut deck = deck::Deck::new_starting_hand(&mut rng);
+        let mut deck = deck::Deck::new_starting_hand(&self.ecs);
         deck.draw();
         deck.draw();
         deck.draw();
         self.ecs.insert(deck);
-        self.ecs.insert(rng);
         // TODO: there really has to be a better way to maintain this info, but here we are
         let data = IntentData {
             hidden: true,
@@ -193,6 +178,72 @@ impl State {
 
         self.ecs.maintain();
         run_state
+    }
+
+    fn entities_need_cleanup(&mut self) -> Vec<Entity> {
+        let entities = self.ecs.entities();
+        let player = self.ecs.read_storage::<Player>();
+
+        let mut to_delete = Vec::new();
+        for entity in entities.join() {
+            let mut should_delete = true;
+
+            // Don't delete the player
+            let p = player.get(entity);
+            if let Some(_p) = p {
+                should_delete = false;
+            }
+
+            if should_delete {
+                to_delete.push(entity);
+            }
+        }
+
+        to_delete
+    }
+
+    fn change_level(&mut self) {
+        // Delete entities that aren't the player or his/her equipment
+        let to_delete = self.entities_need_cleanup();
+        for target in to_delete {
+            self.ecs
+                .delete_entity(target)
+                .expect("Unable to delete entity");
+        }
+
+        let curr_depth = {
+            let map = self.ecs.fetch::<Map>();
+            map.depth
+        };
+
+        let new_map = crate::map::build_level(
+            &mut self.ecs,
+            crate::gui::MAP_W,
+            crate::gui::MAP_H,
+            curr_depth + 1,
+        );
+
+        // update player position
+        let player = self.ecs.fetch::<Entity>();
+        let mut positions = self.ecs.write_storage::<Position>();
+        let mut player_pos = positions
+            .get_mut(*player)
+            .expect("player didn't have a position");
+
+        let new_player_pos = new_map.rooms[0].center();
+        player_pos.x = new_player_pos.x;
+        player_pos.y = new_player_pos.y;
+
+        // replace map
+        let mut map_writer = self.ecs.write_resource::<Map>();
+        *map_writer = new_map;
+
+        // Mark the player's visibility as dirty
+        let mut viewshed_components = self.ecs.write_storage::<Viewshed>();
+        let vs = viewshed_components.get_mut(*player);
+        if let Some(vs) = vs {
+            vs.dirty = true;
+        }
     }
 }
 
@@ -342,6 +393,10 @@ impl GameState for State {
             RunState::ChooseReward { choices } => {
                 gui::update_controls_text(&self.ecs, ctx, &next_status);
                 next_status = player::choice_screen(&mut self.ecs, ctx, choices);
+            }
+            RunState::GenerateMap => {
+                self.change_level();
+                next_status = RunState::AwaitingInput;
             }
             RunState::Dead => {
                 gui::update_controls_text(&self.ecs, ctx, &next_status);

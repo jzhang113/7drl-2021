@@ -4,7 +4,7 @@ use rltk::{Point, RandomNumberGenerator, Rect};
 pub struct Spawner<'a> {
     ecs: &'a mut World,
     blocked_tiles: &'a mut Vec<bool>,
-    rng: &'a mut RandomNumberGenerator,
+    map_exit: usize,
     map_width: i32,
 }
 
@@ -12,13 +12,13 @@ impl<'a> Spawner<'a> {
     pub fn new(
         ecs: &'a mut World,
         blocked_tiles: &'a mut Vec<bool>,
-        rng: &'a mut RandomNumberGenerator,
+        map_exit: usize,
         map_width: i32,
     ) -> Self {
         Spawner {
             ecs,
             blocked_tiles,
-            rng,
+            map_exit,
             map_width,
         }
     }
@@ -30,20 +30,28 @@ impl<'a> Spawner<'a> {
         max: i32,
         builder: impl Fn(&mut World, Point) -> Entity,
     ) {
-        let spawn_count = self.rng.range(min, max);
+        let mut spawn_points = Vec::new();
+        {
+            let mut rng = self.ecs.fetch_mut::<RandomNumberGenerator>();
+            let spawn_count = rng.range(min, max);
 
-        for _ in 0..spawn_count {
-            let dx = self.rng.range(1, room.width());
-            let dy = self.rng.range(1, room.height());
-            let xpos = room.x1 + dx;
-            let ypos = room.y1 + dy;
-            let index = ((ypos * self.map_width) + xpos) as usize;
+            for _ in 0..spawn_count {
+                let dx = rng.range(1, room.width());
+                let dy = rng.range(1, room.height());
+                let xpos = room.x1 + dx;
+                let ypos = room.y1 + dy;
+                let index = ((ypos * self.map_width) + xpos) as usize;
 
-            // don't spawn over something else
-            if !self.blocked_tiles[index] {
-                let _enemy = builder(self.ecs, rltk::Point::new(xpos, ypos));
-                self.blocked_tiles[index] = true;
+                // don't spawn over something else
+                if !self.blocked_tiles[index] && index != self.map_exit {
+                    spawn_points.push((index, xpos, ypos));
+                }
             }
+        }
+
+        for (index, xpos, ypos) in spawn_points {
+            let _enemy = builder(self.ecs, Point::new(xpos, ypos));
+            self.blocked_tiles[index] = true;
         }
     }
 
@@ -52,36 +60,45 @@ impl<'a> Spawner<'a> {
         room: &Rect,
         min: i32,
         max: i32,
+        quality: i32,
         chance: Vec<f32>,
-        builder: Vec<impl Fn(&mut World, Point) -> Entity>,
+        builder: Vec<impl Fn(&mut World, Point, i32) -> Entity>,
     ) {
-        let spawn_count = self.rng.range(min, max);
+        let mut spawn_points = Vec::new();
+        {
+            let mut rng = self.ecs.fetch_mut::<RandomNumberGenerator>();
+            let spawn_count = rng.range(min, max);
 
-        for _ in 0..spawn_count {
-            let dx = self.rng.range(1, room.width());
-            let dy = self.rng.range(1, room.height());
-            let xpos = room.x1 + dx;
-            let ypos = room.y1 + dy;
-            let index = ((ypos * self.map_width) + xpos) as usize;
+            for _ in 0..spawn_count {
+                let dx = rng.range(1, room.width());
+                let dy = rng.range(1, room.height());
+                let xpos = room.x1 + dx;
+                let ypos = room.y1 + dy;
+                let index = ((ypos * self.map_width) + xpos) as usize;
 
-            // don't spawn over something else
-            if !self.blocked_tiles[index] {
-                let roll = self.rng.rand::<f32>();
-                let mut cumul_prob = 0.0;
-                let mut saved_index = 0;
+                // don't spawn over something else
+                if !self.blocked_tiles[index] && index != self.map_exit {
+                    let roll = rng.rand::<f32>();
+                    let mut cumul_prob = 0.0;
+                    let mut builder_index = 0;
 
-                for index in 0..chance.len() {
-                    cumul_prob += chance[index];
+                    for index in 0..chance.len() {
+                        cumul_prob += chance[index];
 
-                    if roll < cumul_prob {
-                        saved_index = index;
-                        break;
+                        if roll < cumul_prob {
+                            builder_index = index;
+                            break;
+                        }
                     }
-                }
 
-                let _enemy = builder[saved_index](self.ecs, rltk::Point::new(xpos, ypos));
-                self.blocked_tiles[index] = true;
+                    spawn_points.push((builder_index, index, xpos, ypos));
+                }
             }
+        }
+
+        for (builder_index, index, xpos, ypos) in spawn_points {
+            let _enemy = builder[builder_index](self.ecs, Point::new(xpos, ypos), quality);
+            self.blocked_tiles[index] = true;
         }
     }
 }
@@ -197,37 +214,41 @@ fn barrel_builder(ecs: &mut World, point: Point) -> EntityBuilder {
         .with(Health { current: 2, max: 2 })
 }
 
-pub fn build_empty_barrel(ecs: &mut World, point: Point) -> Entity {
+pub fn build_empty_barrel(ecs: &mut World, point: Point, _quality: i32) -> Entity {
     barrel_builder(ecs, point).build()
 }
 
-pub fn build_exploding_barrel(ecs: &mut World, point: Point) -> Entity {
+pub fn build_exploding_barrel(ecs: &mut World, point: Point, quality: i32) -> Entity {
     barrel_builder(ecs, point)
         .with(DeathTrigger {
-            event: EventType::Damage { amount: 2 },
-            range: RangeType::Square { size: 1 },
+            event: EventType::Damage {
+                amount: 1 + quality / 2,
+            },
+            range: RangeType::Square {
+                size: 1 + quality / 3,
+            },
         })
         .build()
 }
 
-pub fn build_health_barrel(ecs: &mut World, point: Point) -> Entity {
+pub fn build_health_barrel(ecs: &mut World, point: Point, quality: i32) -> Entity {
     barrel_builder(ecs, point)
         .with(DeathTrigger {
             event: EventType::ItemDrop {
                 drop_type: crate::events::DropType::Health,
-                quality: 1,
+                quality,
             },
             range: RangeType::Single,
         })
         .build()
 }
 
-pub fn build_book_barrel(ecs: &mut World, point: Point) -> Entity {
+pub fn build_book_barrel(ecs: &mut World, point: Point, quality: i32) -> Entity {
     barrel_builder(ecs, point)
         .with(DeathTrigger {
             event: EventType::ItemDrop {
                 drop_type: crate::events::DropType::Skill,
-                quality: 1,
+                quality,
             },
             range: RangeType::Single,
         })
