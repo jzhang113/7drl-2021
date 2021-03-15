@@ -1,4 +1,4 @@
-use super::{deck::Deck, AttackIntent, Position};
+use super::{deck::Deck, AttackIntent, Health, Position};
 use crate::move_type;
 use specs::prelude::*;
 
@@ -11,10 +11,11 @@ impl<'a> System<'a> for AttackSystem {
         WriteExpect<'a, Deck>,
         ReadStorage<'a, Position>,
         WriteStorage<'a, AttackIntent>,
+        WriteStorage<'a, Health>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (entities, player, mut deck, positions, mut attacks) = data;
+        let (entities, player, mut deck, positions, mut attacks, mut healths) = data;
 
         for (ent, intent) in (&entities, &attacks).join() {
             let trait_list = move_type::get_intent_traits(&intent);
@@ -52,6 +53,12 @@ impl<'a> System<'a> for AttackSystem {
                             for _ in 0..amount {
                                 deck.draw();
                             }
+                        }
+                    }
+                    crate::AttackTrait::Heal { amount } => {
+                        if let Some(mut health) = healths.get_mut(ent) {
+                            health.current += amount;
+                            health.current = std::cmp::min(health.current, health.max);
                         }
                     }
                     crate::AttackTrait::Modifier => {

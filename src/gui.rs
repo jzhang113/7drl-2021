@@ -245,7 +245,7 @@ pub fn draw_card_hand(
 
     for att_trait in move_type::get_attack_traits(attack) {
         match att_trait {
-            crate::AttackTrait::Damage => ctx.print(x_start + 1, y_type_line, "Attack "),
+            crate::AttackTrait::Damage => ctx.print(x_start + 1, y_type_line, "Attack"),
             crate::AttackTrait::Modifier => ctx.print(x_start + 1, y_type_line, "Modifier"),
             crate::AttackTrait::Movement => ctx.print(x_start + 1, y_type_line, "Movement"),
             crate::AttackTrait::Equipment => ctx.print(x_start + 1, y_type_line, "Equipment"),
@@ -255,6 +255,10 @@ pub fn draw_card_hand(
             }
             crate::AttackTrait::Draw { amount } => {
                 ctx.print(x_start + 1, y_trait_line, format!("DRAW {}", amount));
+                y_trait_line += 2;
+            }
+            crate::AttackTrait::Heal { amount } => {
+                ctx.print(x_start + 1, y_trait_line, format!("HEAL {}", amount));
                 y_trait_line += 2;
             }
         }

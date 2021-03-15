@@ -25,7 +25,7 @@ impl Deck {
         let mut rng = ecs.fetch_mut::<rltk::RandomNumberGenerator>();
 
         // base cards you start with
-        let mut cards = vec![AttackType::Punch, AttackType::Punch, AttackType::Dodge];
+        let mut cards = vec![AttackType::Punch, AttackType::Sweep, AttackType::Super];
 
         // plus two random cards
         for _ in 0..2 {
@@ -84,7 +84,7 @@ impl Deck {
 }
 
 pub fn attack_type_table(rng: &mut rltk::RandomNumberGenerator, quality: i32) -> AttackType {
-    let roll = rng.range(0, 3) + quality;
+    let roll = rng.range(0 + quality, 3 + 2 * quality);
 
     match roll {
         0 => AttackType::Punch,
@@ -93,9 +93,10 @@ pub fn attack_type_table(rng: &mut rltk::RandomNumberGenerator, quality: i32) ->
         3 => AttackType::Stun,
         4 => AttackType::Quick,
         5 => AttackType::Push,
-        6 => AttackType::Dodge,
+        6 => AttackType::Push,
         7 => AttackType::Dodge,
-        8 => AttackType::Ponder,
-        _ => AttackType::Punch,
+        8 => AttackType::Dodge,
+        9 => AttackType::Ponder,
+        _ => AttackType::Recover,
     }
 }
