@@ -123,3 +123,6 @@ pub struct Heal {
 pub struct SkillChoice {
     pub choices: Vec<crate::AttackType>,
 }
+
+#[derive(Component)]
+pub struct Item;

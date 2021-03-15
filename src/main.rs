@@ -23,6 +23,7 @@ mod sys_death;
 mod sys_mapindex;
 mod sys_movement;
 mod sys_particle;
+mod sys_pickup;
 mod sys_turn;
 mod sys_visibility;
 
@@ -48,6 +49,9 @@ pub enum RunState {
     Running,
     HitPause {
         remaining_time: f32,
+    },
+    ChooseReward {
+        choices: [Option<AttackType>; 4],
     },
     Dead,
 }
@@ -106,6 +110,7 @@ impl State {
         self.ecs.register::<AiState>();
         self.ecs.register::<Heal>();
         self.ecs.register::<SkillChoice>();
+        self.ecs.register::<Item>();
     }
 
     fn new_game(&mut self) {
@@ -123,16 +128,16 @@ impl State {
         for room in map.rooms.iter().skip(1) {
             spawner.build(&room, 0, 4, spawner::build_mook);
 
-            spawner.build_variant(
-                &room,
-                5,
-                10,
-                0.2,
-                0.4,
-                spawner::build_exploding_barrel,
-                spawner::build_loot_barrel,
-                spawner::build_empty_barrel,
+            let mut builder_ary = Vec::new();
+            builder_ary.push(
+                spawner::build_exploding_barrel
+                    as for<'r> fn(&'r mut specs::World, rltk::Point) -> specs::Entity,
             );
+            builder_ary.push(spawner::build_health_barrel);
+            builder_ary.push(spawner::build_book_barrel);
+            builder_ary.push(spawner::build_empty_barrel);
+
+            spawner.build_choice(&room, 5, 10, vec![0.2, 0.3, 0.1, 0.4], builder_ary);
         }
         self.ecs.insert(map);
 
@@ -170,6 +175,9 @@ impl State {
 
         sys_movement::MovementSystem.run_now(&self.ecs);
         sys_attack::AttackSystem.run_now(&self.ecs);
+
+        // pickups happen after movement
+        sys_pickup::PickupSystem.run_now(&self.ecs);
 
         // events are processed after everything relevant is added (only attacks currently)
         let run_state = events::process_stack(&mut self.ecs);
@@ -330,6 +338,10 @@ impl GameState for State {
                         remaining_time: new_time,
                     }
                 }
+            }
+            RunState::ChooseReward { choices } => {
+                gui::update_controls_text(&self.ecs, ctx, &next_status);
+                next_status = player::choice_screen(&mut self.ecs, ctx, choices);
             }
             RunState::Dead => {
                 gui::update_controls_text(&self.ecs, ctx, &next_status);

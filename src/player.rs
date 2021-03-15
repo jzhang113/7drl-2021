@@ -418,3 +418,76 @@ pub fn view_input(gs: &mut State, ctx: &mut Rltk, index: u32) -> RunState {
         index: new_index % (max_index + 1),
     }
 }
+
+pub fn choice_screen(
+    ecs: &mut World,
+    ctx: &mut Rltk,
+    choices: [Option<crate::AttackType>; 4],
+) -> RunState {
+    ctx.set_active_console(2);
+    ctx.cls();
+    ctx.set_active_console(1);
+    ctx.cls();
+
+    let mut deck = ecs.fetch_mut::<crate::deck::Deck>();
+
+    let y_pos = (crate::gui::CONSOLE_HEIGHT - 1 - crate::gui::CARD_H) / 2;
+    let x_pos = (crate::gui::CONSOLE_WIDTH - 1 - 3 * crate::gui::CARD_W) / 4;
+
+    if let Some(card) = choices[0] {
+        crate::gui::draw_card_hand(ctx, &card, x_pos, y_pos, 0, false);
+    }
+    if let Some(card) = choices[1] {
+        crate::gui::draw_card_hand(ctx, &card, 2 * x_pos + crate::gui::CARD_W, y_pos, 1, false);
+    }
+    if let Some(card) = choices[2] {
+        crate::gui::draw_card_hand(
+            ctx,
+            &card,
+            3 * x_pos + 2 * crate::gui::CARD_W,
+            y_pos,
+            2,
+            false,
+        );
+    }
+    if let Some(card) = choices[3] {
+        // TODO: put this somewhere else
+        crate::gui::draw_card_hand(ctx, &card, x_pos, y_pos + crate::gui::CARD_H + 5, 3, false);
+    }
+
+    match ctx.key {
+        None => {}
+        Some(key) => match key {
+            VirtualKeyCode::Space | VirtualKeyCode::Return | VirtualKeyCode::NumpadEnter => {
+                return RunState::Running;
+            }
+            VirtualKeyCode::Key1 => {
+                if let Some(card) = choices[0] {
+                    deck.add(card);
+                    return RunState::Running;
+                }
+            }
+            VirtualKeyCode::Key2 => {
+                if let Some(card) = choices[1] {
+                    deck.add(card);
+                    return RunState::Running;
+                }
+            }
+            VirtualKeyCode::Key3 => {
+                if let Some(card) = choices[2] {
+                    deck.add(card);
+                    return RunState::Running;
+                }
+            }
+            VirtualKeyCode::Key4 => {
+                if let Some(card) = choices[3] {
+                    deck.add(card);
+                    return RunState::Running;
+                }
+            }
+            _ => {}
+        },
+    }
+
+    RunState::ChooseReward { choices }
+}

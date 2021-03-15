@@ -47,16 +47,13 @@ impl<'a> Spawner<'a> {
         }
     }
 
-    pub fn build_variant(
+    pub fn build_choice(
         &mut self,
         room: &Rect,
         min: i32,
         max: i32,
-        chance: f32,
-        chance2: f32,
-        builder: impl Fn(&mut World, Point) -> Entity,
-        builder2: impl Fn(&mut World, Point) -> Entity,
-        builder3: impl Fn(&mut World, Point) -> Entity,
+        chance: Vec<f32>,
+        builder: Vec<impl Fn(&mut World, Point) -> Entity>,
     ) {
         let spawn_count = self.rng.range(min, max);
 
@@ -70,14 +67,19 @@ impl<'a> Spawner<'a> {
             // don't spawn over something else
             if !self.blocked_tiles[index] {
                 let roll = self.rng.rand::<f32>();
+                let mut cumul_prob = 0.0;
+                let mut saved_index = 0;
 
-                if roll < chance {
-                    let _enemy = builder(self.ecs, rltk::Point::new(xpos, ypos));
-                } else if roll < chance + chance2 {
-                    let _enemy = builder2(self.ecs, rltk::Point::new(xpos, ypos));
-                } else {
-                    let _enemy = builder3(self.ecs, rltk::Point::new(xpos, ypos));
+                for index in 0..chance.len() {
+                    cumul_prob += chance[index];
+
+                    if roll < cumul_prob {
+                        saved_index = index;
+                        break;
+                    }
                 }
+
+                let _enemy = builder[saved_index](self.ecs, rltk::Point::new(xpos, ypos));
                 self.blocked_tiles[index] = true;
             }
         }
@@ -202,17 +204,29 @@ pub fn build_empty_barrel(ecs: &mut World, point: Point) -> Entity {
 pub fn build_exploding_barrel(ecs: &mut World, point: Point) -> Entity {
     barrel_builder(ecs, point)
         .with(DeathTrigger {
-            event: EventType::Damage { amount: 1 },
+            event: EventType::Damage { amount: 2 },
             range: RangeType::Square { size: 1 },
         })
         .build()
 }
 
-pub fn build_loot_barrel(ecs: &mut World, point: Point) -> Entity {
+pub fn build_health_barrel(ecs: &mut World, point: Point) -> Entity {
     barrel_builder(ecs, point)
         .with(DeathTrigger {
             event: EventType::ItemDrop {
                 drop_type: crate::events::DropType::Health,
+                quality: 1,
+            },
+            range: RangeType::Single,
+        })
+        .build()
+}
+
+pub fn build_book_barrel(ecs: &mut World, point: Point) -> Entity {
+    barrel_builder(ecs, point)
+        .with(DeathTrigger {
+            event: EventType::ItemDrop {
+                drop_type: crate::events::DropType::Skill,
                 quality: 1,
             },
             range: RangeType::Single,

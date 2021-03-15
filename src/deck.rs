@@ -27,7 +27,7 @@ impl Deck {
 
         // plus two random cards
         for _ in 0..2 {
-            let new_card = attack_type_table(rng);
+            let new_card = attack_type_table(rng, 0);
             cards.push(new_card);
         }
 
@@ -81,18 +81,19 @@ impl Deck {
     }
 }
 
-fn attack_type_table(rng: &mut rltk::RandomNumberGenerator) -> AttackType {
-    let roll = rng.range(0, 8);
+pub fn attack_type_table(rng: &mut rltk::RandomNumberGenerator, quality: i32) -> AttackType {
+    let roll = rng.range(0, 3) + quality;
 
     match roll {
-        0 => AttackType::Sweep,
-        1 => AttackType::Super,
-        2 => AttackType::Stun,
-        3 => AttackType::Quick,
-        4 => AttackType::Push,
-        5 => AttackType::Dodge,
+        0 => AttackType::Punch,
+        1 => AttackType::Sweep,
+        2 => AttackType::Super,
+        3 => AttackType::Stun,
+        4 => AttackType::Quick,
+        5 => AttackType::Push,
         6 => AttackType::Dodge,
-        7 => AttackType::Ponder,
+        7 => AttackType::Dodge,
+        8 => AttackType::Ponder,
         _ => AttackType::Punch,
     }
 }

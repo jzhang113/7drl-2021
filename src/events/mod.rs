@@ -121,6 +121,9 @@ pub fn process_stack(ecs: &mut World) -> crate::RunState {
                 if event.target_tiles.is_empty() {
                     // non-targetted events
                     process_event(ecs, event);
+                } else if event.attack_intent.is_none() {
+                    // TODO, exploding barrels don't let you react properly (even without this branch)
+                    process_event(ecs, event);
                 } else {
                     let mut entities_hit = get_affected_entities(ecs, &event.target_tiles);
 

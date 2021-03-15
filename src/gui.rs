@@ -8,8 +8,8 @@ pub const MAP_W: i32 = 79;
 pub const MAP_H: i32 = 50;
 
 const CARD_Y: i32 = SIDE_H;
-const CARD_W: i32 = 10;
-const CARD_H: i32 = 15;
+pub const CARD_W: i32 = 10;
+pub const CARD_H: i32 = 15;
 
 const SIDE_X: i32 = 0;
 const SIDE_Y: i32 = 0;
@@ -189,7 +189,7 @@ fn draw_card_hidden(ctx: &mut Rltk, x_start: i32, y_start: i32, fore_color: RGB)
     ctx.print(x_start + 1, y_start + 1, "???");
 }
 
-fn draw_card_hand(
+pub fn draw_card_hand(
     ctx: &mut Rltk,
     attack: &AttackType,
     x_start: i32,
@@ -585,10 +585,10 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
     let is_reaction = {
         let can_act = ecs.read_storage::<super::CanActFlag>();
         let player = ecs.fetch::<Entity>();
-        can_act
-            .get(*player)
-            .expect("uh-oh, we're waiting for input but the player can't act")
-            .is_reaction
+        match can_act.get(*player) {
+            None => false,
+            Some(player_can_act) => player_can_act.is_reaction,
+        }
     };
 
     if is_reaction {
@@ -687,6 +687,19 @@ pub fn update_controls_text(ecs: &World, ctx: &mut Rltk, status: &RunState) {
         }
         RunState::HitPause { .. } => {
             ctx.print_color(CONSOLE_WIDTH - 6, y, inactive_color, bg_color, " WAIT");
+        }
+        RunState::ChooseReward { .. } => {
+            // space bar
+            let space_section_x = 25;
+            ctx.print_color(space_section_x, y, icon_color, bg_color, "[SPACE]");
+            ctx.print(space_section_x + 8, y, "skip card");
+
+            // card section
+            let card_section_x = 45;
+            ctx.print_color(card_section_x, y, icon_color, bg_color, "[1-3]");
+            ctx.print(card_section_x + 6, y, "pick card");
+
+            ctx.print_color(CONSOLE_WIDTH - 9, y, inactive_color, bg_color, "ADD CARD");
         }
         _ => {}
     }

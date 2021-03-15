@@ -217,7 +217,44 @@ impl EventResolver for DropResolver {
                 let mut map = world.fetch_mut::<crate::Map>();
                 map.track_item(heal_item, drop_point);
             }
-            DropType::Skill => {}
+            DropType::Skill => {
+                let skill_choices = {
+                    let mut rng = world.fetch_mut::<rltk::RandomNumberGenerator>();
+                    let mut skill_ary = Vec::new();
+
+                    // generate 3 choices by default
+                    for _ in 0..3 {
+                        skill_ary.push(crate::deck::attack_type_table(&mut rng, self.quality));
+                    }
+
+                    skill_ary
+                };
+
+                let book_item = world
+                    .create_entity()
+                    .with(crate::Position {
+                        x: drop_point.x,
+                        y: drop_point.y,
+                    })
+                    .with(crate::Renderable {
+                        symbol: rltk::to_cp437('?'),
+                        fg: crate::health_color(),
+                        bg: crate::bg_color(),
+                    })
+                    .with(crate::SkillChoice {
+                        choices: skill_choices,
+                    })
+                    .with(crate::Viewable {
+                        name: "book".to_string(),
+                        symbol: rltk::to_cp437('?'),
+                        description: vec!["An old fighting manual".to_string()],
+                        list_index: None,
+                    })
+                    .build();
+
+                let mut map = world.fetch_mut::<crate::Map>();
+                map.track_item(book_item, drop_point);
+            }
         }
     }
 }
