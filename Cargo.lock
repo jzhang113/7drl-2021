@@ -396,6 +396,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "counterpuncher"
+version = "0.1.0"
+dependencies = [
+ "ezing",
+ "getrandom",
+ "lazy_static",
+ "rand",
+ "rltk",
+ "specs",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1708,18 +1720,6 @@ name = "tuple_utils"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44834418e2c5b16f47bedf35c28e148db099187dd5feee6367fb2525863af4f1"
-
-[[package]]
-name = "tymerl"
-version = "0.1.0"
-dependencies = [
- "ezing",
- "getrandom",
- "lazy_static",
- "rand",
- "rltk",
- "specs",
-]
 
 [[package]]
 name = "tynm"

@@ -1,5 +1,5 @@
 [package]
-name = "tymerl"
+name = "counterpuncher"
 version = "0.1.0"
 authors = ["jzhang"]
 edition = "2018"

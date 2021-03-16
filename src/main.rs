@@ -426,7 +426,7 @@ fn main() -> rltk::BError {
     rltk::link_resource!(ICONS, "resources/custom_icons.png");
 
     let context = RltkBuilder::simple(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT)?
-        .with_title("Roguelike Tutorial")
+        .with_title("counterpuncher")
         .with_font("Zilk-16x16.png", 16, 16)
         .with_font("custom_icons.png", 16, 16)
         .with_simple_console_no_bg(gui::CONSOLE_WIDTH, gui::CONSOLE_HEIGHT, "Zilk-16x16.png") // main layer
