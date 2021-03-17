@@ -15,7 +15,7 @@ impl<'a> System<'a> for MovementSystem {
     fn run(&mut self, data: Self::SystemData) {
         let (entities, mut map, mut positions, mut movements, mut viewsheds) = data;
 
-        for (_, pos, movement, viewshed) in (
+        for (ent, pos, movement, viewshed) in (
             &entities,
             &mut positions,
             &movements,
@@ -24,13 +24,11 @@ impl<'a> System<'a> for MovementSystem {
             .join()
         {
             let new_pos = movement.loc;
-            let prev_index = map.get_index(pos.x, pos.y);
             let new_index = map.get_index(new_pos.x, new_pos.y);
 
             // check if the tile is blocked, since it may have changed
             if !map.blocked_tiles[new_index] {
-                map.blocked_tiles[prev_index] = false;
-                map.blocked_tiles[new_index] = true;
+                map.move_creature(ent, rltk::Point::new(pos.x, pos.y), new_pos);
 
                 pos.x = new_pos.x;
                 pos.y = new_pos.y;
