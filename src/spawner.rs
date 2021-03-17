@@ -3,22 +3,15 @@ use rltk::{Point, RandomNumberGenerator, Rect};
 
 pub struct Spawner<'a> {
     ecs: &'a mut World,
-    blocked_tiles: &'a mut Vec<bool>,
-    map_exit: usize,
+    map: &'a mut Map,
     map_width: i32,
 }
 
 impl<'a> Spawner<'a> {
-    pub fn new(
-        ecs: &'a mut World,
-        blocked_tiles: &'a mut Vec<bool>,
-        map_exit: usize,
-        map_width: i32,
-    ) -> Self {
+    pub fn new(ecs: &'a mut World, map: &'a mut Map, map_width: i32) -> Self {
         Spawner {
             ecs,
-            blocked_tiles,
-            map_exit,
+            map,
             map_width,
         }
     }
@@ -43,15 +36,16 @@ impl<'a> Spawner<'a> {
                 let index = ((ypos * self.map_width) + xpos) as usize;
 
                 // don't spawn over something else
-                if !self.blocked_tiles[index] && index != self.map_exit {
-                    spawn_points.push((index, xpos, ypos));
+                if !self.map.blocked_tiles[index] && index != self.map.level_exit {
+                    spawn_points.push((xpos, ypos));
                 }
             }
         }
 
-        for (index, xpos, ypos) in spawn_points {
-            let _enemy = builder(self.ecs, Point::new(xpos, ypos));
-            self.blocked_tiles[index] = true;
+        for (xpos, ypos) in spawn_points {
+            let point = Point::new(xpos, ypos);
+            let enemy = builder(self.ecs, point);
+            self.map.track_creature(enemy, point);
         }
     }
 
@@ -77,7 +71,7 @@ impl<'a> Spawner<'a> {
                 let index = ((ypos * self.map_width) + xpos) as usize;
 
                 // don't spawn over something else
-                if !self.blocked_tiles[index] && index != self.map_exit {
+                if !self.map.blocked_tiles[index] && index != self.map.level_exit {
                     let roll = rng.rand::<f32>();
                     let mut cumul_prob = 0.0;
                     let mut builder_index = 0;
@@ -91,14 +85,15 @@ impl<'a> Spawner<'a> {
                         }
                     }
 
-                    spawn_points.push((builder_index, index, xpos, ypos));
+                    spawn_points.push((builder_index, xpos, ypos));
                 }
             }
         }
 
-        for (builder_index, index, xpos, ypos) in spawn_points {
-            let _enemy = builder[builder_index](self.ecs, Point::new(xpos, ypos), quality);
-            self.blocked_tiles[index] = true;
+        for (builder_index, xpos, ypos) in spawn_points {
+            let point = Point::new(xpos, ypos);
+            let enemy = builder[builder_index](self.ecs, point, quality);
+            self.map.track_creature(enemy, point);
         }
     }
 }
@@ -117,10 +112,10 @@ pub fn build_player(ecs: &mut World, point: Point) -> Entity {
         })
         .with(Viewable {
             name: "Player".to_string(),
-            symbol: rltk::to_cp437('@'),
             description: vec!["That's you!".to_string()],
-            list_index: None,
+            seen: false,
         })
+        .with(ViewableIndex { list_index: None })
         .with(Player)
         .with(Schedulable {
             current: 0,
@@ -156,15 +151,15 @@ pub fn build_mook(ecs: &mut World, point: Point) -> Entity {
         })
         .with(Viewable {
             name: "Mook".to_string(),
-            symbol: rltk::to_cp437('x'),
             description: vec![
                 "A lowly grunt,".to_string(),
                 "unskilled, but".to_string(),
                 "can still pack".to_string(),
                 "a wallop".to_string(),
             ],
-            list_index: None,
+            seen: false,
         })
+        .with(ViewableIndex { list_index: None })
         .with(Schedulable {
             current: 0,
             base: 24,
@@ -202,13 +197,12 @@ fn barrel_builder(ecs: &mut World, point: Point) -> EntityBuilder {
         })
         .with(Viewable {
             name: "Barrel".to_string(),
-            symbol: rltk::to_cp437('#'),
             description: vec![
                 "A barrel, what".to_string(),
                 "could be".to_string(),
                 "inside?".to_string(),
             ],
-            list_index: None,
+            seen: false,
         })
         .with(BlocksTile)
         .with(Health { current: 2, max: 2 })
@@ -251,6 +245,54 @@ pub fn build_book_barrel(ecs: &mut World, point: Point, quality: i32) -> Entity 
                 quality,
             },
             range: RangeType::Single,
+        })
+        .build()
+}
+
+pub fn build_health_pickup(ecs: &mut World, point: Point, quality: i32) -> Entity {
+    ecs.create_entity()
+        .with(crate::Position {
+            x: point.x,
+            y: point.y,
+        })
+        .with(crate::Renderable {
+            symbol: rltk::to_cp437('+'),
+            fg: crate::health_color(),
+            bg: crate::bg_color(),
+        })
+        .with(crate::Heal {
+            amount: quality as u32,
+        })
+        .with(crate::Viewable {
+            name: "health".to_string(),
+            description: vec!["Packaged health, don't ask".to_string()],
+            seen: false,
+        })
+        .build()
+}
+
+pub fn build_skill_pickup(
+    ecs: &mut World,
+    point: Point,
+    skill_choices: Vec<crate::AttackType>,
+) -> Entity {
+    ecs.create_entity()
+        .with(crate::Position {
+            x: point.x,
+            y: point.y,
+        })
+        .with(crate::Renderable {
+            symbol: rltk::to_cp437('?'),
+            fg: crate::health_color(),
+            bg: crate::bg_color(),
+        })
+        .with(crate::SkillChoice {
+            choices: skill_choices,
+        })
+        .with(crate::Viewable {
+            name: "book".to_string(),
+            description: vec!["An old fighting manual".to_string()],
+            seen: false,
         })
         .build()
 }

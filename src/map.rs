@@ -1,5 +1,6 @@
 use crate::spawner;
 use rltk::{Algorithm2D, BaseMap, Point, Rect};
+use specs::Entity;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
@@ -17,6 +18,7 @@ pub struct Map {
     pub depth: i32,
     pub color_map: Vec<rltk::RGB>,
     pub item_map: HashMap<usize, specs::Entity>,
+    pub creature_map: HashMap<usize, specs::Entity>,
     pub known_tiles: Vec<bool>,
     pub visible_tiles: Vec<bool>,
     pub blocked_tiles: Vec<bool>,
@@ -134,14 +136,62 @@ impl Map {
         }
     }
 
-    pub fn track_item(&mut self, data: specs::Entity, point: Point) {
+    pub fn track_item(&mut self, data: Entity, point: Point) -> bool {
         let index = self.point2d_to_index(point);
-        self.item_map.entry(index).or_insert(data);
+
+        if self.item_map.get(&index).is_some() {
+            false
+        } else {
+            self.item_map.insert(index, data);
+            true
+        }
     }
 
-    pub fn untrack_item(&mut self, point: Point) -> Option<specs::Entity> {
+    pub fn untrack_item(&mut self, point: Point) -> Option<Entity> {
         let index = self.point2d_to_index(point);
         self.item_map.remove(&index)
+    }
+
+    pub fn track_creature(&mut self, data: Entity, point: Point) -> bool {
+        let index = self.point2d_to_index(point);
+
+        if self.creature_map.get(&index).is_some() {
+            false
+        } else {
+            self.blocked_tiles[index] = true;
+            self.creature_map.insert(index, data);
+            true
+        }
+    }
+
+    pub fn untrack_creature(&mut self, point: Point) -> Option<Entity> {
+        let index = self.point2d_to_index(point);
+        self.blocked_tiles[index] = false;
+        self.creature_map.remove(&index)
+    }
+
+    // move a creature on the map, updating creature_map and blocked_tiles as needed
+    // this does not update the position component
+    // returns false if the move could not be completed
+    pub fn move_creature(&mut self, creature: Entity, prev: Point, next: Point) -> bool {
+        let prev_index = self.point2d_to_index(prev);
+        let next_index = self.point2d_to_index(next);
+
+        // if the destination is blocked, quit moving
+        if self.creature_map.get(&next_index).is_some() {
+            return false;
+        }
+
+        self.creature_map.insert(next_index, creature);
+        self.creature_map.remove(&prev_index);
+
+        // update blocking if needed
+        if self.blocked_tiles[prev_index] {
+            self.blocked_tiles[next_index] = true;
+            self.blocked_tiles[prev_index] = false;
+        }
+
+        true
     }
 }
 
@@ -160,6 +210,7 @@ pub fn build_rogue_map(
         depth,
         color_map: (0..dim).map(|_| crate::map_wall_color(rng)).collect(),
         item_map: HashMap::new(),
+        creature_map: HashMap::new(),
         known_tiles: vec![false; dim],
         visible_tiles: vec![false; dim],
         blocked_tiles: vec![false; dim],
@@ -221,9 +272,11 @@ pub fn build_level(ecs: &mut specs::World, width: i32, height: i32, depth: i32) 
         build_rogue_map(width, height, depth, &mut rng)
     };
 
-    let mut spawner = spawner::Spawner::new(ecs, &mut map.blocked_tiles, map.level_exit, width);
+    // we need to clone the list of rooms so that spawner can borrow the map
+    let cloned_rooms = map.rooms.clone();
+    let mut spawner = spawner::Spawner::new(ecs, &mut map, width);
 
-    for room in map.rooms.iter().skip(1) {
+    for room in cloned_rooms.iter().skip(1) {
         let quality = depth;
         spawner.build(&room, 0 + quality / 2, 2 + quality, spawner::build_mook);
 

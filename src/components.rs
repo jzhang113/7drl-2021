@@ -95,8 +95,12 @@ pub struct Moveset {
 #[derive(Component)]
 pub struct Viewable {
     pub name: String,
-    pub symbol: rltk::FontCharType,
     pub description: Vec<String>,
+    pub seen: bool,
+}
+
+#[derive(Component)]
+pub struct ViewableIndex {
     pub list_index: Option<u32>,
 }
 

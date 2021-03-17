@@ -99,6 +99,7 @@ impl State {
         self.ecs.register::<CardLifetime>();
         self.ecs.register::<BlocksTile>();
         self.ecs.register::<Viewable>();
+        self.ecs.register::<ViewableIndex>();
 
         self.ecs.register::<Health>();
         self.ecs.register::<DeathTrigger>();
@@ -123,11 +124,12 @@ impl State {
         let rng = rltk::RandomNumberGenerator::new();
         self.ecs.insert(rng);
 
-        let map = map::build_level(&mut self.ecs, gui::MAP_W, gui::MAP_H, 1);
+        let mut map = map::build_level(&mut self.ecs, gui::MAP_W, gui::MAP_H, 1);
         let player_pos = map.rooms[0].center();
-        self.ecs.insert(map);
-
         let player = spawner::build_player(&mut self.ecs, player_pos);
+        map.track_creature(player, player_pos);
+
+        self.ecs.insert(map);
         self.ecs.insert(player);
 
         let log = gamelog::GameLog {

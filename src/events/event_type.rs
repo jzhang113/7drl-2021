@@ -125,10 +125,11 @@ impl EventResolver for PushResolver {
                 }
 
                 // fix indexing
-                let affected_index = map.get_index(affected.x, affected.y);
-                let next_index = map.get_index(next_x, next_y);
-                map.blocked_tiles[affected_index] = false;
-                map.blocked_tiles[next_index] = true;
+                map.move_creature(
+                    *e_aff,
+                    Point::new(affected.x, affected.y),
+                    Point::new(next_y, next_y),
+                );
 
                 affected.x = next_x;
                 affected.y = next_y;
@@ -157,9 +158,11 @@ impl EventResolver for MovementResolver {
                     }
 
                     // fix indexing
-                    let source_index = map.get_index(source_pos.x, source_pos.y);
-                    map.blocked_tiles[source_index] = false;
-                    map.blocked_tiles[target_index] = true;
+                    map.move_creature(
+                        source,
+                        Point::new(source_pos.x, source_pos.y),
+                        Point::new(target.x, target.y),
+                    );
 
                     source_pos.x = target.x;
                     source_pos.y = target.y;
@@ -192,28 +195,7 @@ impl EventResolver for DropResolver {
                     std::cmp::max(heal_amount, 1)
                 };
 
-                let heal_item = world
-                    .create_entity()
-                    .with(crate::Position {
-                        x: drop_point.x,
-                        y: drop_point.y,
-                    })
-                    .with(crate::Renderable {
-                        symbol: rltk::to_cp437('+'),
-                        fg: crate::health_color(),
-                        bg: crate::bg_color(),
-                    })
-                    .with(crate::Heal {
-                        amount: heal_amount as u32,
-                    })
-                    .with(crate::Viewable {
-                        name: "health".to_string(),
-                        symbol: rltk::to_cp437('+'),
-                        description: vec!["Packaged health, don't ask".to_string()],
-                        list_index: None,
-                    })
-                    .build();
-
+                let heal_item = crate::spawner::build_health_pickup(world, drop_point, heal_amount);
                 let mut map = world.fetch_mut::<crate::Map>();
                 map.track_item(heal_item, drop_point);
             }
@@ -230,28 +212,8 @@ impl EventResolver for DropResolver {
                     skill_ary
                 };
 
-                let book_item = world
-                    .create_entity()
-                    .with(crate::Position {
-                        x: drop_point.x,
-                        y: drop_point.y,
-                    })
-                    .with(crate::Renderable {
-                        symbol: rltk::to_cp437('?'),
-                        fg: crate::health_color(),
-                        bg: crate::bg_color(),
-                    })
-                    .with(crate::SkillChoice {
-                        choices: skill_choices,
-                    })
-                    .with(crate::Viewable {
-                        name: "book".to_string(),
-                        symbol: rltk::to_cp437('?'),
-                        description: vec!["An old fighting manual".to_string()],
-                        list_index: None,
-                    })
-                    .build();
-
+                let book_item =
+                    crate::spawner::build_skill_pickup(world, drop_point, skill_choices);
                 let mut map = world.fetch_mut::<crate::Map>();
                 map.track_item(book_item, drop_point);
             }

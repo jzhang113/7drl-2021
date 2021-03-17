@@ -1,6 +1,5 @@
-use super::{Map, MoveIntent, Player, Position, RunState, State, Viewable, Viewshed};
+use crate::*;
 use rltk::{Algorithm2D, Point, Rltk, VirtualKeyCode};
-use specs::prelude::*;
 
 fn try_move_player(ecs: &mut World, dx: i32, dy: i32) -> RunState {
     use std::cmp::{max, min};
@@ -384,13 +383,14 @@ pub fn ranged_target(
 
 pub fn view_input(gs: &mut State, ctx: &mut Rltk, index: u32) -> RunState {
     let entities = gs.ecs.entities();
+    let v_indexes = gs.ecs.read_storage::<ViewableIndex>();
     let viewables = gs.ecs.read_storage::<Viewable>();
 
     let mut new_index = index;
     let mut max_index = 0;
 
-    for (ent, view) in (&entities, &viewables).join() {
-        if let Some(list_index) = view.list_index {
+    for (ent, viewables, v_index) in (&entities, &viewables, &v_indexes).join() {
+        if let Some(list_index) = v_index.list_index {
             max_index = std::cmp::max(list_index, max_index);
 
             if list_index == index {

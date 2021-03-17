@@ -475,7 +475,8 @@ fn pluralize(root: String, count: i32) -> String {
 
 pub fn draw_sidebar(ecs: &World, ctx: &mut Rltk) {
     let healths = ecs.read_storage::<Health>();
-    let mut viewables = ecs.write_storage::<Viewable>();
+    let rends = ecs.read_storage::<Renderable>();
+    let mut viewables = ecs.write_storage::<ViewableIndex>();
     let viewsheds = ecs.read_storage::<Viewshed>();
     let positions = ecs.read_storage::<Position>();
     let in_progress = ecs.read_storage::<AttackInProgress>();
@@ -498,8 +499,14 @@ pub fn draw_sidebar(ecs: &World, ctx: &mut Rltk) {
     let mut y = SIDE_Y + 1;
     let mut index = 0;
 
-    for (mut view, pos, health, attack) in
-        (&mut viewables, &positions, &healths, (&in_progress).maybe()).join()
+    for (rend, mut view, pos, health, attack) in (
+        &rends,
+        &mut viewables,
+        &positions,
+        &healths,
+        (&in_progress).maybe(),
+    )
+        .join()
     {
         if !player_view
             .visible
@@ -520,7 +527,7 @@ pub fn draw_sidebar(ecs: &World, ctx: &mut Rltk) {
                 symbol_color = RGB::named(rltk::WHITE);
             }
 
-            ctx.set(x, y, symbol_color, RGB::named(rltk::BLACK), view.symbol);
+            ctx.set(x, y, symbol_color, RGB::named(rltk::BLACK), rend.symbol);
             ctx.set(
                 x + 1,
                 y,

@@ -1,4 +1,4 @@
-use super::{DeathTrigger, Health, Position, RunState};
+use super::{DeathTrigger, Health, Map, Position, RunState};
 use specs::prelude::*;
 
 pub struct DeathSystem;
@@ -7,6 +7,7 @@ impl<'a> System<'a> for DeathSystem {
     type SystemData = (
         Entities<'a>,
         ReadExpect<'a, Entity>,
+        WriteExpect<'a, Map>,
         WriteExpect<'a, RunState>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, DeathTrigger>,
@@ -14,7 +15,7 @@ impl<'a> System<'a> for DeathSystem {
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (entities, player, mut run_state, positions, death_triggers, healths) = data;
+        let (entities, player, mut map, mut run_state, positions, death_triggers, healths) = data;
         let mut dead = Vec::new();
 
         for (ent, pos, health, effect) in
@@ -34,6 +35,7 @@ impl<'a> System<'a> for DeathSystem {
 
                 if ent != *player {
                     dead.push(ent);
+                    map.untrack_creature(rltk::Point::new(pos.x, pos.y));
                 } else {
                     *run_state = RunState::Dead;
                 }
