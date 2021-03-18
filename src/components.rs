@@ -130,3 +130,6 @@ pub struct SkillChoice {
 
 #[derive(Component)]
 pub struct Item;
+
+#[derive(Component)]
+pub struct Openable;

@@ -258,6 +258,7 @@ fn barrel_builder(ecs: &mut World, point: Point) -> EntityBuilder {
             seen: false,
         })
         .with(BlocksTile)
+        .with(Openable)
         .with(Health { current: 2, max: 2 })
 }
 

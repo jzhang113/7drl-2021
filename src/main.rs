@@ -113,6 +113,7 @@ impl State {
         self.ecs.register::<Heal>();
         self.ecs.register::<SkillChoice>();
         self.ecs.register::<Item>();
+        self.ecs.register::<Openable>();
     }
 
     fn new_game(&mut self) {
