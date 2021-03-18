@@ -14,6 +14,7 @@ pub enum AttackType {
     Recover,
     // enemy specific attacks
     Haymaker,
+    Ranged,
 }
 
 #[derive(PartialEq, Copy, Clone)]
@@ -123,6 +124,7 @@ pub fn get_attack_range(attack_type: &AttackType) -> RangeType {
         AttackType::Ponder => RangeType::Empty,
         AttackType::Recover => RangeType::Single,
         AttackType::Haymaker => RangeType::Square { size: 1 },
+        AttackType::Ranged => RangeType::Square { size: 3 },
     }
 }
 
@@ -138,6 +140,7 @@ pub fn get_attack_power(attack_type: &AttackType) -> i32 {
         AttackType::Ponder => 0,
         AttackType::Recover => 0,
         AttackType::Haymaker => 3,
+        AttackType::Ranged => 1,
     }
 }
 
@@ -153,6 +156,7 @@ pub fn get_attack_shape(attack_type: &AttackType) -> RangeType {
         AttackType::Ponder => RangeType::Empty,
         AttackType::Recover => RangeType::Single,
         AttackType::Haymaker => RangeType::Single,
+        AttackType::Ranged => RangeType::Single,
     }
 }
 
@@ -168,6 +172,7 @@ pub fn get_attack_speed(attack_type: &AttackType) -> i32 {
         AttackType::Ponder => 0,
         AttackType::Recover => 0,
         AttackType::Haymaker => -4,
+        AttackType::Ranged => 0,
     }
 }
 
@@ -183,6 +188,7 @@ pub fn get_attack_guard(attack_type: &AttackType) -> i32 {
         AttackType::Ponder => 0,
         AttackType::Recover => 0,
         AttackType::Haymaker => 2,
+        AttackType::Ranged => -4,
     }
 }
 
@@ -198,6 +204,7 @@ pub fn get_attack_name(attack_type: &AttackType) -> String {
         AttackType::Ponder => "ponder",
         AttackType::Recover => "recover",
         AttackType::Haymaker => "haymaker",
+        AttackType::Ranged => "shoot",
     };
 
     name.to_string()
@@ -215,6 +222,7 @@ pub fn get_attack_timing(attack_type: &AttackType) -> AttackTiming {
         AttackType::Ponder => AttackTiming::Slow,
         AttackType::Recover => AttackTiming::Slow,
         AttackType::Haymaker => AttackTiming::Slow,
+        AttackType::Ranged => AttackTiming::Slow,
     }
 }
 
@@ -230,5 +238,6 @@ pub fn get_attack_traits(attack_type: &AttackType) -> Vec<AttackTrait> {
         AttackType::Ponder => vec![AttackTrait::Draw { amount: 2 }],
         AttackType::Recover => vec![AttackTrait::Heal { amount: 2 }],
         AttackType::Haymaker => vec![AttackTrait::Damage],
+        AttackType::Ranged => vec![AttackTrait::Damage],
     }
 }

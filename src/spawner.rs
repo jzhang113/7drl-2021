@@ -21,7 +21,8 @@ impl<'a> Spawner<'a> {
         room: &Rect,
         min: i32,
         max: i32,
-        builder: impl Fn(&mut World, Point) -> Entity,
+        chance: Vec<f32>,
+        builder: Vec<impl Fn(&mut World, Point) -> Entity>,
     ) {
         let mut spawn_points = Vec::new();
         {
@@ -37,19 +38,32 @@ impl<'a> Spawner<'a> {
 
                 // don't spawn over something else
                 if !self.map.blocked_tiles[index] && index != self.map.level_exit {
-                    spawn_points.push((xpos, ypos));
+                    let roll = rng.rand::<f32>();
+                    let mut cumul_prob = 0.0;
+                    let mut builder_index = 0;
+
+                    for index in 0..chance.len() {
+                        cumul_prob += chance[index];
+
+                        if roll < cumul_prob {
+                            builder_index = index;
+                            break;
+                        }
+                    }
+
+                    spawn_points.push((builder_index, xpos, ypos));
                 }
             }
         }
 
-        for (xpos, ypos) in spawn_points {
+        for (builder_index, xpos, ypos) in spawn_points {
             let point = Point::new(xpos, ypos);
-            let enemy = builder(self.ecs, point);
+            let enemy = builder[builder_index](self.ecs, point);
             self.map.track_creature(enemy, point);
         }
     }
 
-    pub fn build_choice(
+    pub fn build_with_quality(
         &mut self,
         room: &Rect,
         min: i32,
@@ -174,6 +188,45 @@ pub fn build_mook(ecs: &mut World, point: Point) -> Entity {
         .with(Health { current: 5, max: 5 })
         .with(Moveset {
             moves: vec![(AttackType::Haymaker, 0.25), (AttackType::Punch, 0.75)],
+        })
+        .with(AiState {
+            status: Behavior::Wander,
+            tracking: None,
+        })
+        .build()
+}
+
+pub fn build_archer(ecs: &mut World, point: Point) -> Entity {
+    ecs.create_entity()
+        .with(Position {
+            x: point.x,
+            y: point.y,
+        })
+        .with(Renderable {
+            symbol: rltk::to_cp437('y'),
+            fg: RGB::named(rltk::LIGHT_GREEN),
+            bg: RGB::named(rltk::BLACK),
+        })
+        .with(Viewable {
+            name: "Archer".to_string(),
+            description: vec!["A grunt with a bow".to_string()],
+            seen: false,
+        })
+        .with(ViewableIndex { list_index: None })
+        .with(Schedulable {
+            current: 0,
+            base: 24,
+            delta: 4,
+        })
+        .with(Viewshed {
+            visible: Vec::new(),
+            dirty: true,
+            range: 8,
+        })
+        .with(BlocksTile)
+        .with(Health { current: 2, max: 2 })
+        .with(Moveset {
+            moves: vec![(AttackType::Punch, 0.25), (AttackType::Ranged, 0.75)],
         })
         .with(AiState {
             status: Behavior::Wander,

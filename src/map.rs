@@ -278,7 +278,18 @@ pub fn build_level(ecs: &mut specs::World, width: i32, height: i32, depth: i32) 
 
     for room in cloned_rooms.iter().skip(1) {
         let quality = depth;
-        spawner.build(&room, 0 + quality / 2, 2 + quality, spawner::build_mook);
+        let mut spawn_ary = Vec::new();
+        spawn_ary.push(
+            spawner::build_mook as for<'r> fn(&'r mut specs::World, rltk::Point) -> specs::Entity,
+        );
+        spawn_ary.push(spawner::build_archer);
+        spawner.build(
+            &room,
+            0 + quality / 2,
+            2 + quality,
+            vec![0.7, 0.3],
+            spawn_ary,
+        );
 
         let mut builder_ary = Vec::new();
         builder_ary.push(
@@ -289,7 +300,7 @@ pub fn build_level(ecs: &mut specs::World, width: i32, height: i32, depth: i32) 
         builder_ary.push(spawner::build_book_barrel);
         builder_ary.push(spawner::build_empty_barrel);
 
-        spawner.build_choice(&room, 5, 10, depth, vec![0.2, 0.3, 0.1, 0.4], builder_ary);
+        spawner.build_with_quality(&room, 5, 10, depth, vec![0.2, 0.3, 0.1, 0.4], builder_ary);
     }
 
     map

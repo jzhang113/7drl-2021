@@ -34,6 +34,8 @@ pub fn draw_map(ecs: &World, ctx: &mut Rltk) {
     );
 
     let map = ecs.fetch::<Map>();
+    let floor_str = format!("FLOOR {}", map.depth);
+    ctx.print(MAP_W + MAP_X - floor_str.len() as i32, MAP_Y - 1, floor_str);
 
     let mut x = 0;
     let mut y = 0;
